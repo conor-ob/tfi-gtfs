@@ -1,0 +1,93 @@
+name: ⚡️ CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+# Cancel superseded PR runs only: with checkSuites on, Railway waits for every
+# main commit's CI to finish before deploying it
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  ci:
+    name: ⚡️ CI
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: tfi-gtfs
+        ports:
+          - 5432:5432
+        # Docker's default 64 MB /dev/shm is too small for parallel index builds
+        options: >-
+          --shm-size=512mb
+          --health-cmd pg_isready
+          --health-interval 2s
+          --health-timeout 5s
+          --health-retries 15
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/tfi-gtfs
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Install node
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: package.json
+          cache: pnpm
+
+      - name: Install deps
+        run: pnpm install --frozen-lockfile
+
+      - name: Check
+        run: pnpm biome ci .
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Build
+        run: pnpm build
+
+      - name: Check migration journal
+        working-directory: packages/tfi-gtfs-db
+        run: pnpm drizzle-kit check
+
+      - name: Check schema has no ungenerated changes
+        working-directory: packages/tfi-gtfs-db
+        run: |
+          pnpm db:generate
+          if [ -n "$(git status --porcelain drizzle)" ]; then
+            echo "::error::schema.ts has changes without a migration. Run 'pnpm db:generate' and commit the result."
+            git status --porcelain drizzle
+            exit 1
+          fi
+
+      # Same entry point Railway runs as the server pre-deploy command
+      - name: Apply migrations to empty database
+        run: node apps/server/dist/migrate.js
+
+      - name: Re-apply migrations (no-op)
+        run: node apps/server/dist/migrate.js
+
+      # tfi-gtfs-db tests use their own database (see its vitest.config.ts)
+      - name: Create test database
+        run: psql "$DATABASE_URL" -c 'CREATE DATABASE "tfi-gtfs-test"'
+
+      - name: Test
+        run: pnpm test
