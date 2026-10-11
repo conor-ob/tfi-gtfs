@@ -27,6 +27,8 @@ pnpm db:up        # Postgres 18 in Docker on localhost:5432 (db: tfi-gtfs, tests
 pnpm dev
 ```
 
+`tfi-gtfs-db` tests run against the `tfi-gtfs-test` database, so `pnpm db:up` before `pnpm test`.
+
 Env vars live in a per-package `.env`; copy each `.env.example`. `NTA_API_KEY` goes in `apps/server/.env`. `pnpm db:reset` wipes the database volume and starts fresh. It uses the default port 5432, so stop any other local Postgres (e.g. putting-pals') first.
 
 ## Design notes
@@ -41,12 +43,13 @@ Smaller decisions that don't warrant an ADR:
 - **Nearby stops**: no PostGIS. Bounding box on indexed `stop_lat`/`stop_lon`, then sort by haversine distance in SQL, behind a `findStopsNear` port.
 - **Server cache invalidation**: the server learns of a new Feed Version from the database (metadata row or `NOTIFY`), never from the job directly.
 - **Realtime overlay**: match Trip Updates to Departures on `trip_id` + `start_date`; apply each Stop Time Update's Delay, and carry the last Delay forward to later Stops. Ignore ADDED trips for now. CANCELED trips and SKIPPED stops remove the Departure.
+- **Staging load**: staging tables are created `EXCLUDING INDEXES`; primary keys and indexes are copied from the `gtfs` catalog after `COPY`, so duplicates fail the check and loads stay fast. Stops are kept when a kept Trip stops there, plus their parent Stations. A session advisory lock stops two imports overlapping, and the swap uses `lock_timeout = 10s` so it never stalls readers for long.
 - **Cron**: `schedule-sync` at `0 4 * * *` (Railway cron is UTC; the Schedule is published around 22:30 UTC).
 
 ## Roadmap
 
 1. ~~**Schedule tables**~~: done. `gtfs` schema plus `public.schedule_import` for change detection; no foreign keys (see `tfi-gtfs-db` schema comment).
-2. **Schedule Import**: `gtfs-static` row parsers → `tfi-gtfs-db` `COPY` into `gtfs_staging` → checks → schema swap (ADRs 0002–0004). Core owns the import service and its ports.
+2. ~~**Schedule Import**~~: done. `pnpm --filter @tfi-gtfs/schedule-sync dev` imports the live feed into the local database (about 30 s, 220 MB peak RSS, 5.8M Stop Times).
 3. **Departures (scheduled)**: core service + repository query for Scheduled Departures at a Stop; tRPC procedure.
 4. **Nearby stops**: core service + repository query; tRPC procedure.
 5. **Realtime**: `gtfs-realtime` client, in-memory Trip Update snapshot behind a port, on-demand poller in the server (ADR 0005), Predicted Departures overlay.

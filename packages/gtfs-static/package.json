@@ -14,15 +14,18 @@
   "scripts": {
     "clean": "git clean -xdf .cache .turbo node_modules",
     "typecheck": "tsc --noEmit true",
-    "spike": "tsx scripts/spike-zip-stream.ts"
+    "spike": "tsx scripts/spike-zip-stream.ts",
+    "test": "vitest"
   },
   "dependencies": {
+    "@tfi-gtfs/tfi-gtfs-core": "workspace:*",
     "csv-parse": "^7.0.3"
   },
   "devDependencies": {
     "@total-typescript/tsconfig": "catalog:",
     "@types/node": "catalog:",
     "tsx": "catalog:",
-    "typescript": "catalog:"
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   }
 }
