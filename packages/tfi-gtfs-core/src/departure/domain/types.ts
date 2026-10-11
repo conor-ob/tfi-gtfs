@@ -23,11 +23,16 @@ export type Departure = Omit<ScheduledStopTime, "departureTime"> & {
    */
   serviceDate: string;
   scheduledDeparture: Date;
+  /** The Scheduled Departure plus the Trip Update's Delay, when there is one */
+  predictedDeparture: Date | null;
 };
 
 export type DepartureQuery = {
   stopId: string;
-  /** Earliest Scheduled Departure to include; defaults to now */
+  /**
+   * Earliest Departure to include, by its Predicted Departure when it has one;
+   * defaults to now
+   */
   from?: Date;
   limit: number;
 };

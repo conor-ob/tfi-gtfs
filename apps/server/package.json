@@ -16,6 +16,7 @@
     "@fastify/rate-limit": "^11.2.0",
     "@mgcrea/fastify-request-logger": "^1.9.1",
     "@mgcrea/pino-pretty-compact": "^1.6.0",
+    "@tfi-gtfs/gtfs-realtime": "workspace:*",
     "@tfi-gtfs/tfi-gtfs-core": "workspace:*",
     "@tfi-gtfs/tfi-gtfs-db": "workspace:*",
     "@tfi-gtfs/tfi-gtfs-trpc": "workspace:*",
