@@ -47,7 +47,7 @@ Smaller decisions that don't warrant an ADR:
 - **Realtime polling**: `RealtimeService` in core polls once a minute (`REALTIME_POLL_INTERVAL_SECONDS`; the NTA doesn't publish its rate limit) while Departures were asked for in the last 10 minutes, and ignores a snapshot more than 5 minutes old. Decoded protobuf messages return defaults (`0`) for missing fields, so the adapter checks a field is present before reading a Delay.
 - **Staging load**: staging tables are created `EXCLUDING INDEXES`; primary keys and indexes are copied from the `gtfs` catalog after `COPY`, so duplicates fail the check and loads stay fast. Stops are kept when a kept Trip stops there, plus their parent Stations. A session advisory lock stops two imports overlapping, and the swap uses `lock_timeout = 10s` so it never stalls readers for long.
 - **Cron**: `schedule-sync` at `0 4 * * *` (Railway cron is UTC; the Schedule is published around 22:30 UTC).
-- **Deploy**: `.railway/railway.ts` declares the server, Postgres (Railway manages its volume) and the `schedule-sync` cron in `europe-west4`. The server runs migrations as its pre-deploy command and stays at one replica, since Trip Updates live in its memory. `NTA_API_KEY` is `preserve()`d: set it once in the Railway dashboard and seal it there. `ORIGIN` is optional; CORS allows no browser origins unless it's set.
+- **Deploy**: `.railway/railway.ts` declares the server, Postgres with its 5 GB `postgres-volume` (Railway provisions it with the database; declaring it adopts it so resizes go through IaC) and the `schedule-sync` cron in `europe-west4`. The server runs migrations as its pre-deploy command and stays at one replica, since Trip Updates live in its memory. `NTA_API_KEY` is `preserve()`d: set it once in the Railway dashboard and seal it there. `ORIGIN` is optional; CORS allows no browser origins unless it's set.
 
 ## Roadmap
 
@@ -57,7 +57,6 @@ Smaller decisions that don't warrant an ADR:
 4. ~~**Nearby stops**~~: done. `StopService` in core, `StopRepositoryImpl` in db, `stops.getNearby` over tRPC.
 5. ~~**Realtime**~~: done. `NtaRealtimeFeedClient` in `gtfs-realtime`, `InMemoryTripUpdateStore` behind a `TripUpdateStore` port, `RealtimeService` on-demand poller (ADR 0005), `predictedDeparture` on each Departure.
 6. ~~**Deploy**~~: done. `.railway/railway.ts` with server, Postgres and the `schedule-sync` cron; `railway config plan` / `apply` from a linked checkout.
-7. **Postgres volume in IaC**: after the first apply, run `railway config pull` into a scratch copy to see how Railway renders the database's managed volume, then declare that `volume(...)` in `railway.ts` with `sizeMB: 5_000` and check `railway config plan` shows a resize, not a new volume. Declaring it before the database exists would create a second, unattached volume.
 
 ## Spikes
 
