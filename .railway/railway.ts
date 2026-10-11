@@ -27,8 +27,9 @@ function dockerBuildConfig({
 }
 
 export default defineRailway(() => {
+  // Deploy a commit only once its GitHub checks (CI, Railway apply) pass
   const tfiGtfs = github("conor-ob/tfi-gtfs", {
-    checkSuites: false,
+    checkSuites: true,
   });
 
   // Railway provisions the database's volume and attaches it; declaring it
