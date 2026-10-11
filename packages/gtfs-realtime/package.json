@@ -14,7 +14,8 @@
   "scripts": {
     "clean": "git clean -xdf .cache .turbo node_modules",
     "typecheck": "tsc --noEmit true",
-    "spike": "tsx --env-file=../../apps/server/.env scripts/spike-trip-updates.ts"
+    "spike": "tsx --env-file=../../apps/server/.env scripts/spike-trip-updates.ts",
+    "test": "vitest"
   },
   "devDependencies": {
     "@tfi-gtfs/gtfs-static": "workspace:*",
@@ -22,9 +23,11 @@
     "@types/node": "catalog:",
     "csv-parse": "^7.0.3",
     "tsx": "catalog:",
-    "typescript": "catalog:"
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   },
   "dependencies": {
+    "@tfi-gtfs/tfi-gtfs-core": "workspace:*",
     "gtfs-realtime-bindings": "^2.2.0",
     "zod": "catalog:"
   }

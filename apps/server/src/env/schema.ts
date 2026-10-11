@@ -15,6 +15,12 @@ const envSchema = z.object({
     .transform((s) => s.split(",").map((origin) => origin.trim()))
     .pipe(z.array(z.url())),
   DATABASE_URL: getDatabaseUrlSchema(),
+  NTA_API_KEY: z.string().min(1),
+  REALTIME_URL: z
+    .url()
+    .default("https://api.nationaltransport.ie/gtfsr/v2/TripUpdates"),
+  // The NTA throttles the API key but doesn't publish a rate
+  REALTIME_POLL_INTERVAL_SECONDS: z.coerce.number().int().min(10).default(60),
   CI: z
     .string()
     .default("false")

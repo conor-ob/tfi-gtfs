@@ -43,7 +43,8 @@ Smaller decisions that don't warrant an ADR:
 - **Departures**: `departures.getByStop({ stopId, from?, limit? })` looks 24 hours ahead across yesterday's, today's and tomorrow's Service Days, then merges them. A Service Day starts at noon minus 12 hours (GTFS), which differs from midnight on the two days the clocks change. Stop Times with `pickup_type = 1` (every Trip's last Stop) are not Departures. Today's feed has no parent Stations, so a Stop's Departures don't include its platforms yet.
 - **Nearby stops**: no PostGIS. `stops.getNearby({ lat, lon, radius?, limit? })` (radius in metres, default 500, max 2000) filters on a bounding box over the indexed `stop_lat`/`stop_lon`, then trims and sorts by haversine distance in SQL, behind a `findStopsNear` port. Only Stops you can board at (`location_type` 0 or empty) are returned, since a Station has no Departures of its own yet.
 - **Server cache invalidation**: the server learns of a new Feed Version from the database (metadata row or `NOTIFY`), never from the job directly.
-- **Realtime overlay**: match Trip Updates to Departures on `trip_id` + `start_date`; apply each Stop Time Update's Delay, and carry the last Delay forward to later Stops. Ignore ADDED trips for now. CANCELED trips and SKIPPED stops remove the Departure.
+- **Realtime overlay**: match Trip Updates to Departures on `trip_id` + `start_date`; apply each Stop Time Update's Delay, and carry the last Delay forward to later Stops, falling back to the Trip Update's own Delay before the first one. Ignore ADDED trips for now. CANCELED trips and SKIPPED stops remove the Departure. With Trip Updates, `departures.getByStop` also looks back an hour for late Trips, and orders and filters by Predicted Departure where there is one.
+- **Realtime polling**: `RealtimeService` in core polls once a minute (`REALTIME_POLL_INTERVAL_SECONDS`; the NTA doesn't publish its rate limit) while Departures were asked for in the last 10 minutes, and ignores a snapshot more than 5 minutes old. Decoded protobuf messages return defaults (`0`) for missing fields, so the adapter checks a field is present before reading a Delay.
 - **Staging load**: staging tables are created `EXCLUDING INDEXES`; primary keys and indexes are copied from the `gtfs` catalog after `COPY`, so duplicates fail the check and loads stay fast. Stops are kept when a kept Trip stops there, plus their parent Stations. A session advisory lock stops two imports overlapping, and the swap uses `lock_timeout = 10s` so it never stalls readers for long.
 - **Cron**: `schedule-sync` at `0 4 * * *` (Railway cron is UTC; the Schedule is published around 22:30 UTC).
 
@@ -53,7 +54,7 @@ Smaller decisions that don't warrant an ADR:
 2. ~~**Schedule Import**~~: done. `pnpm --filter @tfi-gtfs/schedule-sync dev` imports the live feed into the local database (about 30 s, 220 MB peak RSS, 5.8M Stop Times).
 3. ~~**Departures (scheduled)**~~: done. `DepartureService` in core, `DepartureRepositoryImpl` in db, `departures.getByStop` over tRPC.
 4. ~~**Nearby stops**~~: done. `StopService` in core, `StopRepositoryImpl` in db, `stops.getNearby` over tRPC.
-5. **Realtime**: `gtfs-realtime` client, in-memory Trip Update snapshot behind a port, on-demand poller in the server (ADR 0005), Predicted Departures overlay.
+5. ~~**Realtime**~~: done. `NtaRealtimeFeedClient` in `gtfs-realtime`, `InMemoryTripUpdateStore` behind a `TripUpdateStore` port, `RealtimeService` on-demand poller (ADR 0005), `predictedDeparture` on each Departure.
 6. **Deploy**: `.railway/railway.ts` with server, Postgres and the `schedule-sync` cron; `NTA_API_KEY` as a sealed variable.
 
 ## Spikes

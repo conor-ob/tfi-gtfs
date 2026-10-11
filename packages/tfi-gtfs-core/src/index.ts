@@ -6,6 +6,12 @@ export {
   injectDependencies,
   injectScheduleImportDependencies,
 } from "./module/dependencies";
+export type * from "./realtime/domain/types";
+export { InMemoryTripUpdateStore } from "./realtime/in-memory-trip-update-store";
+export type { RealtimeService } from "./realtime/interfaces/inbound/realtime-service";
+export type { RealtimeFeedClient } from "./realtime/interfaces/outbound/realtime-feed-client";
+export type { TripUpdateStore } from "./realtime/interfaces/outbound/trip-update-store";
+export type { RealtimeOptions } from "./realtime/realtime-service";
 export type * from "./schedule/domain/types";
 export type { ScheduleImportService } from "./schedule/interfaces/inbound/schedule-import-service";
 export type {

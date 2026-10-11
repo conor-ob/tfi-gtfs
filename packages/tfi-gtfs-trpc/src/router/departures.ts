@@ -8,7 +8,7 @@ export const departuresRouter = router({
     .input(
       z.object({
         stopId: z.string().min(1),
-        /** Earliest Scheduled Departure to include; defaults to now */
+        /** Earliest Departure to include (Predicted, else Scheduled); defaults to now */
         from: z.date().optional(),
         limit: z.number().int().min(1).max(50).default(10),
       }),
