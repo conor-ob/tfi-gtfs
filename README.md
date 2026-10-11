@@ -45,7 +45,7 @@ Smaller decisions that don't warrant an ADR:
 
 ## Roadmap
 
-1. **Schedule tables**: drizzle schema in the `gtfs` Postgres schema plus first migration; local Postgres for dev.
+1. ~~**Schedule tables**~~: done. `gtfs` schema plus `public.schedule_import` for change detection; no foreign keys (see `tfi-gtfs-db` schema comment).
 2. **Schedule Import**: `gtfs-static` row parsers → `tfi-gtfs-db` `COPY` into `gtfs_staging` → checks → schema swap (ADRs 0002–0004). Core owns the import service and its ports.
 3. **Departures (scheduled)**: core service + repository query for Scheduled Departures at a Stop; tRPC procedure.
 4. **Nearby stops**: core service + repository query; tRPC procedure.
