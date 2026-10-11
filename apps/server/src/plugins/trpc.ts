@@ -15,6 +15,7 @@ export default function (fastify: FastifyInstance) {
       createContext() {
         return createTrpcContext({
           departureService: fastify.dependencies.departureService,
+          stopService: fastify.dependencies.stopService,
         });
       },
       onError({ path, type, error }) {

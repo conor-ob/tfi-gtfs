@@ -12,6 +12,7 @@ export default function (fastify: FastifyInstance) {
   const databaseDependencies = injectDatabaseDependencies();
   const coreDependencies = injectCoreDependencies(
     databaseDependencies.departureRepository,
+    databaseDependencies.stopRepository,
   );
 
   fastify.decorate("dependencies", coreDependencies);

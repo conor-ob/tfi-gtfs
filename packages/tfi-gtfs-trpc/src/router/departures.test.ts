@@ -12,7 +12,10 @@ const createCaller = createCallerFactory(appRouter);
 
 function callerWith(getDepartures: DepartureService["getDepartures"]) {
   return createCaller(
-    createTrpcContext({ departureService: { getDepartures } }),
+    createTrpcContext({
+      departureService: { getDepartures },
+      stopService: { getNearbyStops: async () => [] },
+    }),
   );
 }
 

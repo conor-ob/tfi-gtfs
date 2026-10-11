@@ -5,14 +5,22 @@ import type { ScheduleImportService } from "../schedule/interfaces/inbound/sched
 import type { ScheduleFeedClient } from "../schedule/interfaces/outbound/schedule-feed-client";
 import type { ScheduleImportRepository } from "../schedule/interfaces/outbound/schedule-import-repository";
 import { ScheduleImportServiceImpl } from "../schedule/schedule-import-service";
+import type { StopService } from "../stop/interfaces/inbound/stop-service";
+import type { StopRepository } from "../stop/interfaces/outbound/stop-repository";
+import { StopServiceImpl } from "../stop/stop-service";
 
 // Composition roots for core services. Outbound ports (repositories, feed
 // clients) are passed in by the app that wires everything together.
-export function injectDependencies(departureRepository: DepartureRepository): {
+export function injectDependencies(
+  departureRepository: DepartureRepository,
+  stopRepository: StopRepository,
+): {
   departureService: DepartureService;
+  stopService: StopService;
 } {
   return {
     departureService: new DepartureServiceImpl(departureRepository),
+    stopService: new StopServiceImpl(stopRepository),
   };
 }
 
