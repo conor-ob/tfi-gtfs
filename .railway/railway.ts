@@ -8,6 +8,7 @@ import {
   preserve,
   project,
   service,
+  volume,
 } from "railway/iac";
 
 function dockerBuildConfig({
@@ -30,7 +31,14 @@ export default defineRailway(() => {
     checkSuites: false,
   });
 
-  // Railway provisions and attaches the database's volume
+  // Railway provisions the database's volume and attaches it; declaring it
+  // here adopts it so resizes go through IaC
+  const postgresVolume = volume("postgres-volume", {
+    allowOnlineResize: true,
+    region: "europe-west4-drams3a",
+    sizeMB: 5_000,
+  });
+
   const postgresDatabase = postgres("postgres", {
     region: "europe-west4-drams3a",
   });
@@ -77,7 +85,7 @@ export default defineRailway(() => {
   });
 
   const jobs = group("jobs", [scheduleSync]);
-  const database = group("database", [postgresDatabase]);
+  const database = group("database", [postgresDatabase, postgresVolume]);
   const backend = group("backend", [server]);
 
   return project("tfi-gtfs", {
