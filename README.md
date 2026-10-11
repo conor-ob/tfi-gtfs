@@ -57,6 +57,7 @@ Smaller decisions that don't warrant an ADR:
 4. ~~**Nearby stops**~~: done. `StopService` in core, `StopRepositoryImpl` in db, `stops.getNearby` over tRPC.
 5. ~~**Realtime**~~: done. `NtaRealtimeFeedClient` in `gtfs-realtime`, `InMemoryTripUpdateStore` behind a `TripUpdateStore` port, `RealtimeService` on-demand poller (ADR 0005), `predictedDeparture` on each Departure.
 6. ~~**Deploy**~~: done. `.railway/railway.ts` with server, Postgres and the `schedule-sync` cron; `railway config plan` / `apply` from a linked checkout.
+7. **Postgres volume in IaC**: after the first apply, run `railway config pull` into a scratch copy to see how Railway renders the database's managed volume, then declare that `volume(...)` in `railway.ts` with `sizeMB: 5_000` and check `railway config plan` shows a resize, not a new volume. Declaring it before the database exists would create a second, unattached volume.
 
 ## Spikes
 
