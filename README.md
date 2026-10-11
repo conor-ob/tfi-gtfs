@@ -19,7 +19,15 @@ Turborepo + pnpm monorepo, TypeScript throughout, hexagonal architecture modelle
 | `packages/gtfs-static` | Adapter: remote zip → CSV streams (`openRemoteZip`) |
 | `packages/gtfs-realtime` | Adapter: NTA GTFS-Realtime client + protobuf decoding |
 
-Env vars live in a per-package `.env` (see each `.env.example`). `NTA_API_KEY` goes in `apps/server/.env`.
+## Local development
+
+```sh
+pnpm install
+pnpm db:up        # Postgres 18 in Docker on localhost:5432 (db: tfi-gtfs, tests: tfi-gtfs-test)
+pnpm dev
+```
+
+Env vars live in a per-package `.env`; copy each `.env.example`. `NTA_API_KEY` goes in `apps/server/.env`. `pnpm db:reset` wipes the database volume and starts fresh. It uses the default port 5432, so stop any other local Postgres (e.g. putting-pals') first.
 
 ## Design notes
 

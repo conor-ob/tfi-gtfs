@@ -7,6 +7,9 @@
   "packageManager": "pnpm@12.8.1",
   "scripts": {
     "clean": "turbo clean && git clean -xdf node_modules",
+    "db:up": "docker compose up -d --wait",
+    "db:down": "docker compose down",
+    "db:reset": "docker compose down --volumes && docker compose up -d --wait",
     "db:generate": "turbo db:generate",
     "db:migrate": "turbo db:migrate",
     "db:studio": "turbo db:studio",
