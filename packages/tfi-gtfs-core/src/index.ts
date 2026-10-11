@@ -1,3 +1,7 @@
+export { StopNotFoundError } from "./departure/departure-service";
+export type * from "./departure/domain/types";
+export type { DepartureService } from "./departure/interfaces/inbound/departure-service";
+export type { DepartureRepository } from "./departure/interfaces/outbound/departure-repository";
 export {
   injectDependencies,
   injectScheduleImportDependencies,

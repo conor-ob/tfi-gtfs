@@ -9,8 +9,10 @@ declare module "fastify" {
 }
 
 export default function (fastify: FastifyInstance) {
-  const _databaseDependencies = injectDatabaseDependencies();
-  const coreDependencies = injectCoreDependencies();
+  const databaseDependencies = injectDatabaseDependencies();
+  const coreDependencies = injectCoreDependencies(
+    databaseDependencies.departureRepository,
+  );
 
   fastify.decorate("dependencies", coreDependencies);
 }
