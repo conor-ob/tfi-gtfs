@@ -1,5 +1,17 @@
+import { builtinModules } from "node:module";
 import * as path from "node:path";
 import { defineConfig } from "vite";
+import pkg from "./package.json" with { type: "json" };
+
+// Externalize Node built-ins and the job's own installed dependencies, like the
+// server's build. Workspace packages export TypeScript source, which the
+// Docker image deletes, so they're bundled along with their dependencies.
+const external = [
+  ...builtinModules,
+  ...Object.entries(pkg.dependencies)
+    .filter(([, version]) => !version.startsWith("workspace:"))
+    .map(([name]) => name),
+];
 
 export default defineConfig({
   build: {
@@ -8,15 +20,12 @@ export default defineConfig({
       formats: ["es"],
       fileName: "index",
     },
-    rollupOptions: {
-      external: (id) => {
-        // Externalize Node.js built-in modules
-        if (id.startsWith("node:") || !id.includes("/")) {
-          return true;
-        }
-        // Externalize all dependencies
-        return !id.startsWith(".") && !path.isAbsolute(id);
-      },
+    rolldownOptions: {
+      // Lets bundled CommonJS (e.g. pg) require Node built-ins
+      platform: "node",
+      external: (id) =>
+        id.startsWith("node:") ||
+        external.some((name) => id === name || id.startsWith(`${name}/`)),
     },
   },
   resolve: {

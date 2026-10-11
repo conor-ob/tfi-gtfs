@@ -10,9 +10,17 @@ const envSchema = z.object({
     .string()
     .transform((s) => parseInt(s, 10))
     .pipe(z.number()),
+  // Browser origins allowed by CORS; none by default, since the owner's apps
+  // don't call from a browser
   ORIGIN: z
     .string()
-    .transform((s) => s.split(",").map((origin) => origin.trim()))
+    .default("")
+    .transform((s) =>
+      s
+        .split(",")
+        .map((origin) => origin.trim())
+        .filter(Boolean),
+    )
     .pipe(z.array(z.url())),
   DATABASE_URL: getDatabaseUrlSchema(),
   NTA_API_KEY: z.string().min(1),
