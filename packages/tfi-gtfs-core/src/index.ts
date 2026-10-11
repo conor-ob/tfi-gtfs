@@ -17,3 +17,6 @@ export type {
   ScheduleStaging,
 } from "./schedule/interfaces/outbound/schedule-import-repository";
 export { ScheduleImportError } from "./schedule/schedule-import-service";
+export type * from "./stop/domain/types";
+export type { StopService } from "./stop/interfaces/inbound/stop-service";
+export type { StopRepository } from "./stop/interfaces/outbound/stop-repository";
