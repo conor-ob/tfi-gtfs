@@ -1,0 +1,31 @@
+# Dependencies
+node_modules
+
+# Local env files
+.env
+
+# Testing
+coverage
+
+# Turbo
+.turbo
+
+# Build Outputs
+out/
+build
+dist
+
+# Debug
+npm-debug.log*
+
+# Misc
+.DS_Store
+*.pem
+
+# vite
+vite.config.ts.timestamp-*
+
+# tsconfig
+.cache
+tsconfig.tsbuildinfo
+tsconfig.*.tsbuildinfo

@@ -1,0 +1,19 @@
+packages:
+  - "apps/*"
+  - "jobs/*"
+  - "packages/*"
+
+allowBuilds:
+  esbuild: true
+
+catalog:
+  "@total-typescript/tsconfig": ^1.0.4
+  "@trpc/server": ^11.19.0
+  "@types/node": ^24.19.0
+  dotenv: ^18.0.4
+  superjson: ^2.2.6
+  tsx: ^4.23.15
+  typescript: ^6.0.3
+  vite: ^8.3.1
+  vitest: ^5.0.2
+  zod: ^4.6.5

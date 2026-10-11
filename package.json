@@ -1,0 +1,35 @@
+{
+  "name": "tfi-gtfs",
+  "private": true,
+  "engines": {
+    "node": ">=24.19.0"
+  },
+  "packageManager": "pnpm@12.8.1",
+  "scripts": {
+    "clean": "turbo clean && git clean -xdf node_modules",
+    "db:up": "docker compose up -d --wait",
+    "db:down": "docker compose down",
+    "db:reset": "docker compose down --volumes && docker compose up -d --wait",
+    "db:generate": "turbo db:generate",
+    "db:migrate": "turbo db:migrate",
+    "db:studio": "turbo db:studio",
+    "build": "turbo build",
+    "format": "biome format .",
+    "format:fix": "biome format --write .",
+    "lint": "biome lint .",
+    "lint:fix": "biome lint --write .",
+    "check": "biome check .",
+    "check:fix": "biome check --write .",
+    "lint:ws": "pnpm dlx sherif@latest",
+    "postinstall": "pnpm lint:ws",
+    "typecheck": "turbo typecheck",
+    "test": "turbo test",
+    "dev": "turbo dev",
+    "start": "turbo start"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.14",
+    "turbo": "^2.11.5",
+    "typescript": "catalog:"
+  }
+}
