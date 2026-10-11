@@ -1,0 +1,31 @@
+{
+  "name": "@tfi-gtfs/gtfs-realtime",
+  "version": "0.0.0",
+  "type": "module",
+  "private": true,
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "clean": "git clean -xdf .cache .turbo node_modules",
+    "typecheck": "tsc --noEmit true",
+    "spike": "tsx --env-file=../../apps/server/.env scripts/spike-trip-updates.ts"
+  },
+  "devDependencies": {
+    "@tfi-gtfs/gtfs-static": "workspace:*",
+    "@total-typescript/tsconfig": "catalog:",
+    "@types/node": "catalog:",
+    "csv-parse": "^7.0.3",
+    "tsx": "catalog:",
+    "typescript": "catalog:"
+  },
+  "dependencies": {
+    "gtfs-realtime-bindings": "^2.2.0",
+    "zod": "catalog:"
+  }
+}

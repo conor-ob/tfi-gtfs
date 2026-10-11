@@ -1,0 +1,28 @@
+{
+  "name": "@tfi-gtfs/schedule-sync",
+  "version": "0.0.0",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "clean": "git clean -xdf .cache .turbo dist node_modules",
+    "build": "vite build",
+    "dev": "tsx src/index.ts",
+    "start": "node dist/index.js",
+    "typecheck": "tsc --noEmit true"
+  },
+  "dependencies": {
+    "@tfi-gtfs/gtfs-static": "workspace:*",
+    "@tfi-gtfs/tfi-gtfs-core": "workspace:*",
+    "@tfi-gtfs/tfi-gtfs-db": "workspace:*",
+    "@tfi-gtfs/tfi-gtfs-utils": "workspace:*",
+    "dotenv": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@total-typescript/tsconfig": "catalog:",
+    "@types/node": "catalog:",
+    "tsx": "catalog:",
+    "typescript": "catalog:",
+    "vite": "catalog:"
+  }
+}
