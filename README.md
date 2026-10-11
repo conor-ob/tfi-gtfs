@@ -40,6 +40,7 @@ Smaller decisions that don't warrant an ADR:
 - **Entries imported**: agency, routes, trips, stops, calendar, calendar_dates, stop_times, feed_info. `shapes.txt` (91 MB compressed) and `translations.txt` are skipped for now; keep `trips.shape_id` so shapes can be added later as one more table.
 - **Change detection**: skip the import when the zip's ETag and `feed_info.feed_version` match the last successful import (stored in a `public` metadata table).
 - **Times**: store Stop Times as integer seconds since the start of the Service Day (GTFS times can exceed `24:00:00`). Service Days are in `Europe/Dublin`. "Next Departures" must check active Service Calendars for both today and yesterday.
+- **Departures**: `departures.getByStop({ stopId, from?, limit? })` looks 24 hours ahead across yesterday's, today's and tomorrow's Service Days, then merges them. A Service Day starts at noon minus 12 hours (GTFS), which differs from midnight on the two days the clocks change. Stop Times with `pickup_type = 1` (every Trip's last Stop) are not Departures. Today's feed has no parent Stations, so a Stop's Departures don't include its platforms yet.
 - **Nearby stops**: no PostGIS. Bounding box on indexed `stop_lat`/`stop_lon`, then sort by haversine distance in SQL, behind a `findStopsNear` port.
 - **Server cache invalidation**: the server learns of a new Feed Version from the database (metadata row or `NOTIFY`), never from the job directly.
 - **Realtime overlay**: match Trip Updates to Departures on `trip_id` + `start_date`; apply each Stop Time Update's Delay, and carry the last Delay forward to later Stops. Ignore ADDED trips for now. CANCELED trips and SKIPPED stops remove the Departure.
@@ -50,7 +51,7 @@ Smaller decisions that don't warrant an ADR:
 
 1. ~~**Schedule tables**~~: done. `gtfs` schema plus `public.schedule_import` for change detection; no foreign keys (see `tfi-gtfs-db` schema comment).
 2. ~~**Schedule Import**~~: done. `pnpm --filter @tfi-gtfs/schedule-sync dev` imports the live feed into the local database (about 30 s, 220 MB peak RSS, 5.8M Stop Times).
-3. **Departures (scheduled)**: core service + repository query for Scheduled Departures at a Stop; tRPC procedure.
+3. ~~**Departures (scheduled)**~~: done. `DepartureService` in core, `DepartureRepositoryImpl` in db, `departures.getByStop` over tRPC.
 4. **Nearby stops**: core service + repository query; tRPC procedure.
 5. **Realtime**: `gtfs-realtime` client, in-memory Trip Update snapshot behind a port, on-demand poller in the server (ADR 0005), Predicted Departures overlay.
 6. **Deploy**: `.railway/railway.ts` with server, Postgres and the `schedule-sync` cron; `NTA_API_KEY` as a sealed variable.

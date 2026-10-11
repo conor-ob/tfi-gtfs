@@ -1,10 +1,15 @@
+import type { DepartureService } from "@tfi-gtfs/tfi-gtfs-core";
 import { initTRPC } from "@trpc/server";
 import superjson from "superjson";
 import z, { ZodError } from "zod";
 
 // Core services are passed in by the server's composition root
-export function createTrpcContext() {
-  return {};
+export function createTrpcContext({
+  departureService,
+}: {
+  departureService: DepartureService;
+}) {
+  return { departureService };
 }
 
 const t = initTRPC

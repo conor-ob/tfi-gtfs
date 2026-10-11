@@ -13,7 +13,9 @@ export default function (fastify: FastifyInstance) {
     trpcOptions: {
       router: appRouter,
       createContext() {
-        return createTrpcContext();
+        return createTrpcContext({
+          departureService: fastify.dependencies.departureService,
+        });
       },
       onError({ path, type, error }) {
         fastify.log.error(
