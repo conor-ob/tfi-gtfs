@@ -9,7 +9,8 @@
     "typecheck": "tsc --noEmit true",
     "test": "vitest",
     "dev": "vite --host",
-    "start": "node dist/index.js"
+    "start": "node dist/index.js",
+    "spike:sqlite-swap": "tsx scripts/spike-sqlite-swap.ts"
   },
   "dependencies": {
     "@fastify/cors": "^11.3.0",
@@ -31,6 +32,7 @@
   "devDependencies": {
     "@total-typescript/tsconfig": "catalog:",
     "@types/node": "catalog:",
+    "tsx": "catalog:",
     "typescript": "catalog:",
     "vite": "catalog:",
     "vite-plugin-node": "^8.0.0",
