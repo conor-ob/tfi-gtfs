@@ -82,6 +82,7 @@ export class ScheduleImportRepositoryImpl implements ScheduleImportRepository {
       .select({
         feedVersion: scheduleImportTable.feedVersion,
         etag: scheduleImportTable.etag,
+        watchedStopIds: scheduleImportTable.watchedStopIds,
       })
       .from(scheduleImportTable)
       .orderBy(desc(scheduleImportTable.importedAt))
@@ -223,8 +224,12 @@ class PostgresScheduleStaging implements ScheduleStaging {
       await this.client.query(`ALTER SCHEMA ${STAGING} RENAME TO ${ACTIVE}`);
       await this.client.query(`DROP SCHEMA ${OLD} CASCADE`);
       await this.client.query(
-        "INSERT INTO schedule_import (feed_version, etag) VALUES ($1, $2)",
-        [scheduleImport.feedVersion, scheduleImport.etag],
+        "INSERT INTO schedule_import (feed_version, etag, watched_stop_ids) VALUES ($1, $2, $3)",
+        [
+          scheduleImport.feedVersion,
+          scheduleImport.etag,
+          scheduleImport.watchedStopIds,
+        ],
       );
       await this.client.query("COMMIT");
     } catch (error) {

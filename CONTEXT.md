@@ -26,6 +26,10 @@ _Avoid_: Operator, company, provider
 A place where passengers board or alight, identified by the Schedule. A Station is a Stop that groups other Stops (platforms).
 _Avoid_: Station (unless it is a parent Stop), halt
 
+**Watched Stop**:
+A Stop the owner has chosen to carry Departures for. When Watched Stops are configured, the Schedule Import keeps only them and the Trips that serve them.
+_Avoid_: Favourite, saved stop, stop filter (for the Stops themselves)
+
 **Route**:
 A named, rider-facing service such as "46A" or "DART", belonging to one Agency.
 _Avoid_: Line, service

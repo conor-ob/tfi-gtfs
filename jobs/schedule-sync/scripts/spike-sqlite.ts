@@ -135,7 +135,13 @@ class SqliteScheduleImportRepository implements ScheduleImportRepository {
           "SELECT feed_version, etag FROM schedule_import ORDER BY imported_at DESC LIMIT 1",
         )
         .get() as { feed_version: string; etag: string | null } | undefined;
-      return row ? { feedVersion: row.feed_version, etag: row.etag } : null;
+      return row
+        ? {
+            feedVersion: row.feed_version,
+            etag: row.etag,
+            watchedStopIds: null,
+          }
+        : null;
     } finally {
       db.close();
     }

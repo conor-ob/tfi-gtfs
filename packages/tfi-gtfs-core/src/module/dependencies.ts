@@ -11,7 +11,10 @@ import {
 import type { ScheduleImportService } from "../schedule/interfaces/inbound/schedule-import-service";
 import type { ScheduleFeedClient } from "../schedule/interfaces/outbound/schedule-feed-client";
 import type { ScheduleImportRepository } from "../schedule/interfaces/outbound/schedule-import-repository";
-import { ScheduleImportServiceImpl } from "../schedule/schedule-import-service";
+import {
+  type ScheduleImportOptions,
+  ScheduleImportServiceImpl,
+} from "../schedule/schedule-import-service";
 import type { StopService } from "../stop/interfaces/inbound/stop-service";
 import type { StopRepository } from "../stop/interfaces/outbound/stop-repository";
 import { StopServiceImpl } from "../stop/stop-service";
@@ -49,11 +52,13 @@ export function injectDependencies(
 export function injectScheduleImportDependencies(
   scheduleFeedClient: ScheduleFeedClient,
   scheduleImportRepository: ScheduleImportRepository,
+  scheduleImportOptions?: Partial<ScheduleImportOptions>,
 ): { scheduleImportService: ScheduleImportService } {
   return {
     scheduleImportService: new ScheduleImportServiceImpl(
       scheduleFeedClient,
       scheduleImportRepository,
+      scheduleImportOptions,
     ),
   };
 }

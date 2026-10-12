@@ -1,7 +1,9 @@
 import type {
+  Route,
   ScheduleImportResult,
   ScheduleTableName,
   Stop,
+  Trip,
 } from "./domain/types";
 import type { ScheduleImportService } from "./interfaces/inbound/schedule-import-service";
 import type {
@@ -24,13 +26,27 @@ export class ScheduleImportError extends Error {
   }
 }
 
+export type ScheduleImportOptions = {
+  /**
+   * The only Stops to import Departures for (see
+   * docs/adr/0007-import-only-watched-stops.md). Null or empty keeps every
+   * Stop.
+   */
+  watchedStopIds: readonly string[] | null;
+};
+
 export class ScheduleImportServiceImpl implements ScheduleImportService {
+  private readonly watchedStopIds: string[] | null;
+
   constructor(
     private readonly scheduleFeedClient: ScheduleFeedClient,
     private readonly scheduleImportRepository: ScheduleImportRepository,
+    options: Partial<ScheduleImportOptions> = {},
   ) {
     this.scheduleFeedClient = scheduleFeedClient;
     this.scheduleImportRepository = scheduleImportRepository;
+    const ids = options.watchedStopIds ?? [];
+    this.watchedStopIds = ids.length > 0 ? [...new Set(ids)].sort() : null;
   }
 
   async importSchedule(): Promise<ScheduleImportResult> {
@@ -39,18 +55,32 @@ export class ScheduleImportServiceImpl implements ScheduleImportService {
     if (!feedInfo) throw new Error("Schedule has no feed_info row");
     const { feedVersion } = feedInfo;
 
+    const { watchedStopIds } = this;
     const latest = await this.scheduleImportRepository.findLatestImport();
-    if (latest?.feedVersion === feedVersion && latest.etag === feed.etag) {
+    if (
+      latest?.feedVersion === feedVersion &&
+      latest.etag === feed.etag &&
+      sameStops(latest.watchedStopIds, watchedStopIds)
+    ) {
       return { status: "skipped", feedVersion };
     }
 
     const staging = await this.scheduleImportRepository.createStaging();
     try {
-      const rowCounts = await loadSchedule(feed, staging);
+      const { rowCounts, unknownWatchedStopIds } = await loadSchedule(
+        feed,
+        staging,
+        watchedStopIds ? new Set(watchedStopIds) : null,
+      );
       const problems = await staging.check();
       if (problems.length > 0) throw new ScheduleImportError(problems);
-      await staging.publish({ feedVersion, etag: feed.etag });
-      return { status: "imported", feedVersion, rowCounts };
+      await staging.publish({ feedVersion, etag: feed.etag, watchedStopIds });
+      return {
+        status: "imported",
+        feedVersion,
+        rowCounts,
+        unknownWatchedStopIds,
+      };
     } catch (error) {
       await staging.discard();
       throw error;
@@ -59,35 +89,60 @@ export class ScheduleImportServiceImpl implements ScheduleImportService {
 }
 
 /**
- * Loads entries in dependency order, keeping only rows reachable from the kept
- * Agencies: Routes → Trips → Service Calendars and Stop Times → Stops.
+ * Loads the rows reachable from the kept Agencies and, when set, the Watched
+ * Stops. Routes and Trips are held back until Stop Times have streamed, so
+ * only those serving a kept Stop Time are written; Service Calendars and
+ * Stops follow from them.
  */
-async function loadSchedule(feed: ScheduleFeed, staging: ScheduleStaging) {
-  const routeIds = new Set<string>();
-  const tripIds = new Set<string>();
-  const serviceIds = new Set<string>();
-  const stopIds = new Set<string>();
-
+async function loadSchedule(
+  feed: ScheduleFeed,
+  staging: ScheduleStaging,
+  watchedStopIds: Set<string> | null,
+) {
   const agency = await staging.load(
     "agency",
     filter(feed.read("agency"), (row) => KEPT_AGENCY_IDS.has(row.agencyId)),
   );
-  const routes = await staging.load(
-    "routes",
-    filter(feed.read("routes"), (row) => {
-      if (!KEPT_AGENCY_IDS.has(row.agencyId)) return false;
-      routeIds.add(row.routeId);
+
+  const routesById = new Map<string, Route>();
+  for await (const route of feed.read("routes")) {
+    if (KEPT_AGENCY_IDS.has(route.agencyId)) {
+      routesById.set(route.routeId, route);
+    }
+  }
+  const tripsById = new Map<string, Trip>();
+  for await (const trip of feed.read("trips")) {
+    if (routesById.has(trip.routeId)) tripsById.set(trip.tripId, trip);
+  }
+
+  const tripIds = new Set<string>();
+  const stopIds = new Set<string>();
+  const stopTimes = await staging.load(
+    "stop_times",
+    filter(feed.read("stop_times"), (row) => {
+      if (!tripsById.has(row.tripId)) return false;
+      if (watchedStopIds && !watchedStopIds.has(row.stopId)) return false;
+      tripIds.add(row.tripId);
+      stopIds.add(row.stopId);
       return true;
     }),
   );
+
+  const routeIds = new Set<string>();
+  const serviceIds = new Set<string>();
   const trips = await staging.load(
     "trips",
-    filter(feed.read("trips"), (row) => {
-      if (!routeIds.has(row.routeId)) return false;
-      tripIds.add(row.tripId);
+    filter(tripsById.values(), (row) => {
+      if (!tripIds.has(row.tripId)) return false;
+      routeIds.add(row.routeId);
       serviceIds.add(row.serviceId);
       return true;
     }),
+  );
+  tripsById.clear();
+  const routes = await staging.load(
+    "routes",
+    filter(routesById.values(), (row) => routeIds.has(row.routeId)),
   );
   const calendar = await staging.load(
     "calendar",
@@ -97,30 +152,31 @@ async function loadSchedule(feed: ScheduleFeed, staging: ScheduleStaging) {
     "calendar_dates",
     filter(feed.read("calendar_dates"), (row) => serviceIds.has(row.serviceId)),
   );
-  const stopTimes = await staging.load(
-    "stop_times",
-    filter(feed.read("stop_times"), (row) => {
-      if (!tripIds.has(row.tripId)) return false;
-      stopIds.add(row.stopId);
-      return true;
-    }),
-  );
-  const stops = await staging.load(
-    "stops",
-    keptStops(await collect(feed.read("stops")), stopIds),
-  );
+  const allStops = await collect(feed.read("stops"));
+  const stops = await staging.load("stops", keptStops(allStops, stopIds));
   const feedInfo = await staging.load("feed_info", feed.read("feed_info"));
 
+  const knownStopIds = new Set(allStops.map((stop) => stop.stopId));
   return {
-    agency,
-    routes,
-    trips,
-    calendar,
-    calendar_dates: calendarDates,
-    stop_times: stopTimes,
-    stops,
-    feed_info: feedInfo,
-  } satisfies Record<ScheduleTableName, number>;
+    rowCounts: {
+      agency,
+      routes,
+      trips,
+      calendar,
+      calendar_dates: calendarDates,
+      stop_times: stopTimes,
+      stops,
+      feed_info: feedInfo,
+    } satisfies Record<ScheduleTableName, number>,
+    unknownWatchedStopIds: [...(watchedStopIds ?? [])].filter(
+      (stopId) => !knownStopIds.has(stopId),
+    ),
+  };
+}
+
+function sameStops(a: string[] | null, b: string[] | null) {
+  if (a === null || b === null) return a === b;
+  return a.length === b.length && a.every((stopId, i) => stopId === b[i]);
 }
 
 /** Stops served by a kept Trip, plus the Stations that contain them */
@@ -140,7 +196,7 @@ async function* keptStops(stops: Stop[], servedStopIds: Set<string>) {
 }
 
 async function* filter<T>(
-  rows: AsyncIterable<T>,
+  rows: AsyncIterable<T> | Iterable<T>,
   keep: (row: T) => boolean,
 ): AsyncIterable<T> {
   for await (const row of rows) {

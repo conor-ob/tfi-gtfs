@@ -148,13 +148,16 @@ export const feedInfoTable = gtfsSchema.table("feed_info", {
 });
 
 // One row per successful Schedule Import, used for change detection: the next
-// import is skipped when the zip's ETag and Feed Version match the latest row.
+// import is skipped when the zip's ETag, Feed Version and Watched Stops match
+// the latest row. `watched_stop_ids` is sorted, or null when every Stop was
+// kept (see docs/adr/0007-import-only-watched-stops.md).
 export const scheduleImportTable = pgTable(
   "schedule_import",
   {
     id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
     feedVersion: text("feed_version").notNull(),
     etag: text("etag"),
+    watchedStopIds: text("watched_stop_ids").array(),
     importedAt: timestamp("imported_at", { withTimezone: true, precision: 3 })
       .notNull()
       .defaultNow(),

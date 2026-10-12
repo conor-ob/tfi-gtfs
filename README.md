@@ -36,9 +36,10 @@ Env vars live in a per-package `.env`; copy each `.env.example`. `NTA_API_KEY` g
 Smaller decisions that don't warrant an ADR:
 
 - **Feed URLs**: Schedule `https://www.transportforireland.ie/transitData/Data/GTFS_Realtime.zip`; Realtime `https://api.nationaltransport.ie/gtfsr/v2/TripUpdates` with an `x-api-key` header.
-- **Agency filter**: keep `1`, `3`, `03C`, `10000`, `IR` (see ADR 0001). Filtering happens during the import by tracking kept `route_id`s, then kept `trip_id`s; routes and trips stream before `stop_times` because we choose the entry order.
+- **Agency filter**: keep `1`, `3`, `03C`, `10000`, `IR` (see ADR 0001). Filtering happens during the import by tracking kept `route_id`s, then kept `trip_id`s; routes and trips are held in memory until `stop_times` has streamed, so only Trips with a kept Stop Time are written, then their Routes and Service Calendars.
+- **Watched Stops**: `WATCHED_STOP_IDS` on `schedule-sync` (comma-separated, optional) keeps only those Stops' Stop Times and the Trips serving them (see ADR 0007): 13 MB of `gtfs` tables for 10 Stops instead of 758 MB. Unset keeps every Stop. Unknown IDs are logged, not fatal. Nearby stops then searches Watched Stops only.
 - **Entries imported**: agency, routes, trips, stops, calendar, calendar_dates, stop_times, feed_info. `shapes.txt` (91 MB compressed) and `translations.txt` are skipped for now; keep `trips.shape_id` so shapes can be added later as one more table.
-- **Change detection**: skip the import when the zip's ETag and `feed_info.feed_version` match the last successful import (stored in a `public` metadata table).
+- **Change detection**: skip the import when the zip's ETag, `feed_info.feed_version` and the sorted Watched Stops match the last successful import (stored in `public.schedule_import`).
 - **Times**: store Stop Times as integer seconds since the start of the Service Day (GTFS times can exceed `24:00:00`). Service Days are in `Europe/Dublin`. "Next Departures" must check active Service Calendars for both today and yesterday.
 - **Departures**: `departures.getByStop({ stopId, from?, limit? })` looks 24 hours ahead across yesterday's, today's and tomorrow's Service Days, then merges them. A Service Day starts at noon minus 12 hours (GTFS), which differs from midnight on the two days the clocks change. Stop Times with `pickup_type = 1` (every Trip's last Stop) are not Departures. Today's feed has no parent Stations, so a Stop's Departures don't include its platforms yet.
 - **Nearby stops**: no PostGIS. `stops.getNearby({ lat, lon, radius?, limit? })` (radius in metres, default 500, max 2000) filters on a bounding box over the indexed `stop_lat`/`stop_lon`, then trims and sorts by haversine distance in SQL, behind a `findStopsNear` port. Only Stops you can board at (`location_type` 0 or empty) are returned, since a Station has no Departures of its own yet.
@@ -53,12 +54,13 @@ Smaller decisions that don't warrant an ADR:
 ## Roadmap
 
 1. ~~**Schedule tables**~~: done. `gtfs` schema plus `public.schedule_import` for change detection; no foreign keys (see `tfi-gtfs-db` schema comment).
-2. ~~**Schedule Import**~~: done. `pnpm --filter @tfi-gtfs/schedule-sync dev` imports the live feed into the local database (about 30 s, 220 MB peak RSS, 5.8M Stop Times).
+2. ~~**Schedule Import**~~: done. `pnpm --filter @tfi-gtfs/schedule-sync dev` imports the live feed into the local database (about 30 s, 300 MB peak RSS, 5.8M Stop Times; about 24 s with 10 Watched Stops).
 3. ~~**Departures (scheduled)**~~: done. `DepartureService` in core, `DepartureRepositoryImpl` in db, `departures.getByStop` over tRPC.
 4. ~~**Nearby stops**~~: done. `StopService` in core, `StopRepositoryImpl` in db, `stops.getNearby` over tRPC.
 5. ~~**Realtime**~~: done. `NtaRealtimeFeedClient` in `gtfs-realtime`, `InMemoryTripUpdateStore` behind a `TripUpdateStore` port, `RealtimeService` on-demand poller (ADR 0005), `predictedDeparture` on each Departure.
 6. ~~**Deploy**~~: done. `.railway/railway.ts` with server, Postgres and the `schedule-sync` cron; `railway config plan` / `apply` from a linked checkout.
 7. ~~**CI**~~: done. `ci.yaml`, `railway-plan.yaml` and `railway-apply.yaml` under `.github/workflows`.
+8. ~~**Watched Stops**~~: done. `WATCHED_STOP_IDS` on `schedule-sync` (ADR 0007). Next: set it on Railway, then lower the Postgres memory cap once the graph settles.
 
 ## Spikes
 

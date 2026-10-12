@@ -1,5 +1,7 @@
 # Serve the Schedule from a SQLite file built by the import job
 
+> Superseded by [0007](0007-import-only-watched-stops.md): Postgres stays, and the Schedule Import keeps only Watched Stops. Not implemented; the spikes and measurements below remain for reference.
+
 Supersedes [0003](0003-schedule-import-schema-swap.md), and the "writes directly to Postgres" half of [0002](0002-schedule-import-job-writes-directly-to-postgres.md).
 
 An always-on Postgres is most of the hosting bill, because Railway bills its RAM and CPU around the clock. Yet the Schedule is read-only between imports and replaced wholesale once a day. So the Schedule Import now builds one SQLite file per Feed Version and uploads it to a Railway Storage Bucket. The server downloads that file and queries it in-process with `node:sqlite`. Postgres is removed.
