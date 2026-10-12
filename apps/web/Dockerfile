@@ -1,0 +1,44 @@
+# https://fintlabs.medium.com/optimized-multi-stage-docker-builds-with-turborepo-and-pnpm-for-nodejs-microservices-in-a-monorepo-c686fdcf051f
+
+# Base Alpine image
+FROM node:24-alpine AS alpine
+RUN apk add --no-cache libc6-compat
+
+# Setup pnpm and turbo
+FROM alpine AS base
+RUN npm install -g pnpm turbo \
+    && pnpm config set store-dir /root/.local/share/pnpm/store/v3
+
+# Prune projects to isolate subworkspace
+FROM base AS pruner
+WORKDIR /app
+COPY . .
+RUN turbo prune --scope=@tfi-gtfs/web --docker
+
+# Build stage
+FROM base AS builder
+
+WORKDIR /app
+
+# Copy only lockfiles and pruned workspace manifests first
+COPY --from=pruner /app/out/pnpm-lock.yaml ./pnpm-lock.yaml
+COPY --from=pruner /app/out/pnpm-workspace.yaml ./pnpm-workspace.yaml
+COPY --from=pruner /app/out/json/ .
+
+# Install dependencies (layer cached by Docker if lockfile unchanged)
+RUN pnpm install --frozen-lockfile
+
+# Copy full source for the isolated workspace
+COPY --from=pruner /app/out/full/ .
+
+# Turbo build
+RUN turbo build --filter=@tfi-gtfs/web
+
+# Static files served by Caddy, which also proxies /api to the server
+FROM caddy:2-alpine AS runner
+
+COPY --from=builder /app/apps/web/dist /srv
+COPY apps/web/Caddyfile /etc/caddy/Caddyfile
+
+RUN caddy fmt --overwrite /etc/caddy/Caddyfile
+CMD ["caddy", "run", "--config", "/etc/caddy/Caddyfile", "--adapter", "caddyfile"]

@@ -7,9 +7,14 @@ import {
   postgres,
   preserve,
   project,
+  type ReferencableServiceNode,
   service,
   volume,
 } from "railway/iac";
+
+function privateNetworkingUrl(target: ReferencableServiceNode) {
+  return `http://\${{${target.name}.RAILWAY_PRIVATE_DOMAIN}}:\${{${target.name}.PORT}}`;
+}
 
 function dockerBuildConfig({
   dockerfilePath,
@@ -69,6 +74,23 @@ export default defineRailway(() => {
     },
   });
 
+  // Serves the static build and proxies /api to the server over private
+  // networking, so the server needs no public domain and no CORS origin
+  const web = service("web", {
+    source: tfiGtfs,
+    env: {
+      PORT: "8080",
+      SERVER_URL: privateNetworkingUrl(server),
+    },
+    build: dockerBuildConfig({
+      dockerfilePath: "apps/web/Dockerfile",
+    }),
+    deploy: {
+      ...deployConfig,
+      healthcheckPath: "/",
+    },
+  });
+
   // Railway cron is UTC; the Schedule is published around 22:30 UTC
   const scheduleSync = service("schedule-sync", {
     source: tfiGtfs,
@@ -92,8 +114,9 @@ export default defineRailway(() => {
   const jobs = group("jobs", [scheduleSync]);
   const database = group("database", [postgresDatabase, postgresVolume]);
   const backend = group("backend", [server]);
+  const frontend = group("frontend", [web]);
 
   return project("tfi-gtfs", {
-    resources: [backend, database, jobs],
+    resources: [backend, database, frontend, jobs],
   });
 });
