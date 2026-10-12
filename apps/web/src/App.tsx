@@ -57,7 +57,7 @@ function StopDepartures({
     ...trpc.departures.getByStop.queryOptions({
       stopId,
       directionId,
-      limit: 5,
+      limit: 6,
     }),
     refetchInterval: REFETCH_INTERVAL_MS,
   });
