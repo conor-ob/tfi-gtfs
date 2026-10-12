@@ -12,8 +12,9 @@
  * 3. Reports build time, peak RSS, file and gzip sizes, and the latency of the
  *    Departures and nearby Stops queries on each layout.
  *
- * Usage: pnpm --filter @tfi-gtfs/schedule-sync spike:sqlite [url] [--keep]
- *   --keep  reuses layout A from a previous run instead of re-importing
+ * Usage: pnpm --filter @tfi-gtfs/schedule-sync spike:sqlite [url] [--keep] [--temp-memory]
+ *   --keep         reuses layout A from a previous run instead of re-importing
+ *   --temp-memory  keeps SQLite temp storage in memory instead of temp files
  */
 import { createReadStream, existsSync } from "node:fs";
 import { mkdir, rename, rm, stat } from "node:fs/promises";
@@ -36,6 +37,8 @@ const FEED_URL =
   args.find((a) => !a.startsWith("--")) ??
   "https://www.transportforireland.ie/transitData/Data/GTFS_Realtime.zip";
 const KEEP = args.includes("--keep");
+// Where sorts, index builds and VACUUM spill: MEMORY or FILE
+const TEMP_STORE = args.includes("--temp-memory") ? "MEMORY" : "FILE";
 
 const OUT_DIR = join(import.meta.dirname, "../.cache/sqlite-spike");
 const TEXT_DB = join(OUT_DIR, "schedule-text.sqlite");
@@ -46,11 +49,9 @@ const BATCH_ROWS = 10_000;
 const mb = (n: number) => `${(n / 1024 / 1024).toFixed(1)} MB`;
 const secs = (ms: number) => `${(ms / 1000).toFixed(1)}s`;
 
-let peakRss = 0;
-const sampleRss = () => {
-  peakRss = Math.max(peakRss, process.memoryUsage().rss);
-};
-const rssTimer = setInterval(sampleRss, 50);
+// The kernel's high-water mark: a timer can't sample RSS while synchronous
+// node:sqlite calls block the event loop
+const peakRss = () => process.resourceUsage().maxRSS * 1024;
 
 // --- Layout A: mirrors the Postgres schema ----------------------------------
 
@@ -114,7 +115,7 @@ function openForBuild(path: string) {
     PRAGMA journal_mode = OFF;
     PRAGMA synchronous = OFF;
     PRAGMA cache_size = -65536;
-    PRAGMA temp_store = MEMORY;
+    PRAGMA temp_store = ${TEMP_STORE};
   `);
   return db;
 }
@@ -167,7 +168,6 @@ class SqliteScheduleImportRepository implements ScheduleImportRepository {
           insert.run(...keys.map((key) => bindable(record[key])));
           if (++count % BATCH_ROWS === 0) {
             db.exec("COMMIT; BEGIN");
-            sampleRss();
           }
         }
         db.exec("COMMIT");
@@ -495,7 +495,7 @@ if (!(KEEP && existsSync(TEXT_DB))) {
   const started = performance.now();
   const result = await scheduleImportService.importSchedule();
   console.log(
-    `Layout A (text IDs) imported ${result.feedVersion} in ${secs(performance.now() - started)}, peak RSS ${mb(peakRss)}`,
+    `Layout A (text IDs) imported ${result.feedVersion} in ${secs(performance.now() - started)}, peak RSS ${mb(peakRss())}`,
   );
   if (result.status === "imported") console.table(result.rowCounts);
 }
@@ -505,7 +505,7 @@ if (!(KEEP && existsSync(TEXT_DB))) {
   const started = performance.now();
   buildIntLayout(TEXT_DB, INT_DB);
   console.log(
-    `Layout B (integer IDs) derived in ${secs(performance.now() - started)}, peak RSS ${mb(peakRss)}`,
+    `Layout B (integer IDs) derived in ${secs(performance.now() - started)}, peak RSS ${mb(peakRss())}`,
   );
 }
 
@@ -526,5 +526,4 @@ for (const [label, path] of [
 benchmark("Layout A (text IDs)", TEXT_DB, textDeparturesSql);
 benchmark("Layout B (integer IDs)", INT_DB, intDeparturesSql);
 
-clearInterval(rssTimer);
-console.log(`\nPeak RSS overall: ${mb(peakRss)}`);
+console.log(`\nPeak RSS overall: ${mb(peakRss())}`);

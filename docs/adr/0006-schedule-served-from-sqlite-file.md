@@ -21,10 +21,16 @@ An always-on Postgres is most of the hosting bill, because Railway bills its RAM
 
 - Spike (`jobs/schedule-sync/scripts/spike-sqlite.ts`, Feed Version of 2026-10-12, 5.8M Stop Times):
   - The integer-ID layout is 113 MB, or 26 MB gzipped.
-  - Departures at the busiest Stop take 0.08 ms at p50 and 0.14 ms at p99. Nearby Stops take 0.07 ms at p50. Both were measured with a warm OS cache.
-  - The import takes 84 s with a 172 MB peak RSS, plus 4.6 s to derive the integer layout. It is slower than Postgres `COPY` (about 30 s), which is acceptable for a daily job.
-- The spike's RSS rose to 494 MB after the build, while it measured sizes and ran benchmarks. The cause must be found before the server opens files the same way.
-- The server's memory includes the page cache over a file of about 100 MB, far less than Postgres's 768 MB cap.
+  - Departures at the busiest Stop take 0.08 ms at p50 and 0.14 ms at p99. Nearby Stops take 0.07 ms at p50.
+  - The import takes about 85–115 s, plus 5 s to derive the integer layout. It is slower than Postgres `COPY` (about 30 s), which is acceptable for a daily job.
+  - The job peaks at about 350 MB RSS for the import and 490 MB with the derive step in the same process. The Postgres job peaks at 220 MB. Most of the difference is SQLite's sorter during index builds and `VACUUM`. With `temp_store = MEMORY` the derive step alone reaches 484 MB; with `temp_store = FILE` it reaches 295 MB at the same speed. So the job builds with `temp_store = FILE`. The job runs for about two minutes a day, so its memory barely shows on the bill.
+- Spike (`apps/server/scripts/spike-sqlite-swap.ts`, against a local HTTP stand-in for the bucket):
+  - The server downloads, hash-checks and gunzips the 26 MB object in about 0.2 s.
+  - It answers Departures at all 5,517 Stops in 0.5 s, about 0.09 ms each.
+  - Process RSS settles at about 125 MB with the whole file read, against 36 MB for bare Node.
+  - Swapping Feed Versions under a continuous query loop gave 0 errors in about 28,000 queries. The slowest query was 1.1 ms and event-loop delay stayed at or below 2.3 ms during the download. Answers moved from the old Feed Version to the new one in a single step.
+  - The old file is deleted after the swap. An object whose hash doesn't match is rejected, and the current file keeps serving.
+- On Linux, the container's memory also counts the OS page cache over the file, up to about 113 MB. That cache is reclaimable, and it is still far less than Postgres's 768 MB cap. The macOS spike can't measure it; check Railway's memory graph after the first deploy.
 - Drizzle migrations and the CI migration checks go away. The build code owns the schema. Repository tests run against a file built from a fixture feed, so CI no longer needs a Postgres service. Local development no longer needs `pnpm db:up`.
 - Rollback means pointing `latest.json` at an older key. The job keeps the last seven files per schema version and deletes older ones.
 - Bucket storage is $0.015 per GB-month, and downloads to services are free. Uploads from the job are billed as egress, at roughly 26 MB a day.

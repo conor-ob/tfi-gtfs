@@ -64,4 +64,5 @@ Smaller decisions that don't warrant an ADR:
 
 - `pnpm --filter @tfi-gtfs/gtfs-static spike [--slow]`: streams the whole Schedule zip and reports entry order, row counts per Agency, timing and peak memory.
 - `pnpm --filter @tfi-gtfs/gtfs-realtime spike`: one TripUpdates request; reports feed shape and how Trip Updates join to static `trip_id`s.
-- `pnpm --filter @tfi-gtfs/schedule-sync spike:sqlite [--keep]`: runs the real Schedule Import into a SQLite file through a `node:sqlite` `ScheduleImportRepository`, derives a compact integer-ID layout from it, and reports file and gzip sizes and query latency for both.
+- `pnpm --filter @tfi-gtfs/schedule-sync spike:sqlite [--keep]`: runs the real Schedule Import into a SQLite file through a `node:sqlite` `ScheduleImportRepository`, derives a compact integer-ID layout from it, and reports file and gzip sizes, peak RSS and query latency for both. `--temp-memory` keeps SQLite temp storage in memory, to compare.
+- `pnpm --filter @tfi-gtfs/server spike:sqlite-swap`: the server side of ADR 0006 against a local stand-in for the bucket. Downloads and opens the file built above, queries every Stop, hot-swaps to a second Feed Version under load, and rejects an object whose hash doesn't match.
