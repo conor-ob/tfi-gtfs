@@ -8,7 +8,8 @@
     "build": "vite build",
     "dev": "tsx src/index.ts",
     "start": "node dist/index.js",
-    "typecheck": "tsc --noEmit true"
+    "typecheck": "tsc --noEmit true",
+    "spike:sqlite": "tsx scripts/spike-sqlite.ts"
   },
   "dependencies": {
     "@tfi-gtfs/gtfs-static": "workspace:*",
