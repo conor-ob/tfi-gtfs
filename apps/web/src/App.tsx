@@ -6,7 +6,7 @@ import { type Departure, trpc } from "./trpc";
 // Keep in step with WATCHED_STOP_IDS in .railway/railway.ts: the Schedule
 // only has Departures for watched Stops
 const STOPS = [
-  { stopId: "8250IR0014", name: "Dalkey" },
+  { stopId: "8250IR0014", name: "Dalkey", directionId: 0 as const },
   { stopId: "8250DB003062", name: "Breffni Road" },
 ];
 
@@ -40,14 +40,20 @@ export function App() {
 function StopDepartures({
   stopId,
   name,
+  directionId,
   now,
 }: {
   stopId: string;
   name: string;
+  directionId?: 0 | 1;
   now: Date;
 }) {
   const { data, error, dataUpdatedAt } = useQuery({
-    ...trpc.departures.getByStop.queryOptions({ stopId, limit: 6 }),
+    ...trpc.departures.getByStop.queryOptions({
+      stopId,
+      directionId,
+      limit: 6,
+    }),
     refetchInterval: REFETCH_INTERVAL_MS,
   });
 

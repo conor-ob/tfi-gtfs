@@ -35,6 +35,7 @@ export class DepartureServiceImpl implements DepartureService {
   async getDepartures({
     stopId,
     from = this.now(),
+    directionId,
     limit,
   }: DepartureQuery): Promise<Departure[]> {
     const stop = await this.departureRepository.findStop(stopId);
@@ -46,6 +47,7 @@ export class DepartureServiceImpl implements DepartureService {
       snapshot
         ? this.scheduledBetween(
             stopId,
+            directionId,
             at - LOOKBACK_MS,
             at - 1,
             LOOKBACK_LIMIT,
@@ -53,6 +55,7 @@ export class DepartureServiceImpl implements DepartureService {
         : [],
       this.scheduledBetween(
         stopId,
+        directionId,
         at,
         at + HORIZON_MS,
         snapshot ? limit + SPARE : limit,
@@ -81,6 +84,7 @@ export class DepartureServiceImpl implements DepartureService {
   /** Scheduled Departures between two instants (inclusive), earliest first */
   private async scheduledBetween(
     stopId: string,
+    directionId: number | undefined,
     from: number,
     until: number,
     limit: number,
@@ -102,6 +106,7 @@ export class DepartureServiceImpl implements DepartureService {
           {
             stopId,
             serviceDate,
+            directionId,
             fromTime: Math.max(0, Math.ceil((from - start) / 1000)),
             toTime,
             limit,

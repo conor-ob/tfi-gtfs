@@ -218,6 +218,22 @@ describe("DepartureRepositoryImpl", () => {
     expect(limited.map((row) => row.tripId)).toEqual(["t1"]);
   });
 
+  it("keeps to the direction when given one", async () => {
+    const query = { ...allDay, serviceDate: "2026-12-07" };
+
+    const outbound = await repository.findScheduledStopTimes({
+      ...query,
+      directionId: 0,
+    });
+    const inbound = await repository.findScheduledStopTimes({
+      ...query,
+      directionId: 1,
+    });
+
+    expect(outbound.map((row) => row.tripId)).toEqual(["t1", "t2"]);
+    expect(inbound).toEqual([]);
+  });
+
   it("finds a Stop by id", async () => {
     expect(await repository.findStop("s1")).toEqual(stop("s1"));
     expect(await repository.findStop("missing")).toBeNull();
