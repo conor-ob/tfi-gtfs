@@ -15,10 +15,6 @@ import type {
   ScheduleStaging,
 } from "./interfaces/outbound/schedule-import-repository";
 
-// Agencies whose Trips the Realtime Feed covers (see
-// docs/adr/0001-nta-realtime-schedule-filtered-by-agency.md)
-const KEPT_AGENCY_IDS = new Set(["1", "3", "03C", "10000", "IR"]);
-
 export class ScheduleImportError extends Error {
   constructor(problems: string[]) {
     super(`Schedule failed checks:\n- ${problems.join("\n- ")}`);
@@ -89,26 +85,19 @@ export class ScheduleImportServiceImpl implements ScheduleImportService {
 }
 
 /**
- * Loads the rows reachable from the kept Agencies and, when set, the Watched
- * Stops. Routes and Trips are held back until Stop Times have streamed, so
- * only those serving a kept Stop Time are written; Service Calendars and
- * Stops follow from them.
+ * Loads the rows reachable from the Watched Stops, or from every Stop when
+ * none are set. Routes and Trips are held back until Stop Times have
+ * streamed, so only those serving a kept Stop Time are written; Agencies,
+ * Service Calendars and Stops follow from them.
  */
 async function loadSchedule(
   feed: ScheduleFeed,
   staging: ScheduleStaging,
   watchedStopIds: Set<string> | null,
 ) {
-  const agency = await staging.load(
-    "agency",
-    filter(feed.read("agency"), (row) => KEPT_AGENCY_IDS.has(row.agencyId)),
-  );
-
   const routesById = new Map<string, Route>();
   for await (const route of feed.read("routes")) {
-    if (KEPT_AGENCY_IDS.has(route.agencyId)) {
-      routesById.set(route.routeId, route);
-    }
+    routesById.set(route.routeId, route);
   }
   const tripsById = new Map<string, Trip>();
   for await (const trip of feed.read("trips")) {
@@ -140,9 +129,18 @@ async function loadSchedule(
     }),
   );
   tripsById.clear();
+  const agencyIds = new Set<string>();
   const routes = await staging.load(
     "routes",
-    filter(routesById.values(), (row) => routeIds.has(row.routeId)),
+    filter(routesById.values(), (row) => {
+      if (!routeIds.has(row.routeId)) return false;
+      agencyIds.add(row.agencyId);
+      return true;
+    }),
+  );
+  const agency = await staging.load(
+    "agency",
+    filter(feed.read("agency"), (row) => agencyIds.has(row.agencyId)),
   );
   const calendar = await staging.load(
     "calendar",
