@@ -1,8 +1,11 @@
 name: 🚂 Railway apply
 
 # Applies the plan pinned on the merged PR, so there's no manual trigger: the
-# action finds the plan through the PR, and fails if the environment or
-# .railway/ moved since
+# action finds the plan through the PR, and refuses if the environment or
+# .railway/ moved since. A refusal only fails the job when a fresh plan still
+# has changes pending: services wait for every check before deploying
+# (`checkSuites`), so a dashboard edit between plan and merge would otherwise
+# block the merge commit's deploy with nothing left to apply
 on:
   push:
     branches:
@@ -28,7 +31,41 @@ jobs:
         uses: actions/checkout@v7
 
       - name: Railway config apply
+        id: apply
+        continue-on-error: true
         uses: railwayapp/config@v1
         with:
           command: apply
           railway-token: ${{ secrets.RAILWAY_TOKEN }}
+
+      # Same install as railway-plan.yaml: railway.ts imports railway/iac
+      - name: Install pnpm
+        if: steps.apply.outcome == 'failure'
+        uses: pnpm/action-setup@v6
+
+      - name: Install node
+        if: steps.apply.outcome == 'failure'
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: package.json
+          cache: pnpm
+
+      - name: Install deps
+        if: steps.apply.outcome == 'failure'
+        run: pnpm install --frozen-lockfile
+
+      # Never applies anything: passes only when the environment already
+      # matches .railway/, otherwise the change needs a fresh plan on a PR
+      - name: Check nothing is left to apply
+        if: steps.apply.outcome == 'failure'
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: |
+          npm install -g @railway/cli
+          set +e
+          railway config plan --detailed-exit-code
+          case $? in
+            0) echo "::warning::The pinned plan was refused, but the environment already matches .railway/" ;;
+            2) echo "::error::Changes are still pending. Re-plan them on a pull request." >&2; exit 1 ;;
+            *) exit 1 ;;
+          esac
