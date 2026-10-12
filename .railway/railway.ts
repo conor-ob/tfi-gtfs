@@ -82,8 +82,10 @@ export default defineRailway(() => {
     source: tfiGtfs,
     env: {
       DATABASE_URL: postgresDatabase.env.DATABASE_URL,
-      // Set in the Railway dashboard; unset imports every Stop (see docs/adr/0007)
-      WATCHED_STOP_IDS: preserve(),
+      // Comma-separated; changing it re-imports at the next run (see
+      // docs/adr/0007). Declared here, not in the dashboard, so a change is
+      // planned and reviewed like any other
+      WATCHED_STOP_IDS: "8250IR0014,8250DB003062",
     },
     build: dockerBuildConfig({
       dockerfilePath: "jobs/schedule-sync/Dockerfile",
