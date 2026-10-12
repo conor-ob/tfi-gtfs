@@ -99,7 +99,7 @@ export default defineRailway(() => {
       // Comma-separated; changing it re-imports at the next run (see
       // docs/adr/0007). Declared here, not in the dashboard, so a change is
       // planned and reviewed like any other
-      WATCHED_STOP_IDS: "8250IR0014,8250DB003062",
+      WATCHED_STOP_IDS: "8250IR0014,8250DB003062,8250IR0111",
     },
     build: dockerBuildConfig({
       dockerfilePath: "jobs/schedule-sync/Dockerfile",

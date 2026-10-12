@@ -8,6 +8,11 @@ import { type Departure, trpc } from "./trpc";
 const STOPS = [
   { stopId: "8250IR0014", name: "Dalkey", directionId: 0 as const },
   { stopId: "8250DB003062", name: "Breffni Road" },
+  {
+    stopId: "8250IR0111",
+    name: "Sandycove & Glasthule",
+    directionId: 0 as const,
+  },
 ];
 
 // Route pill colours by Agency, with neutral for any other Agency
