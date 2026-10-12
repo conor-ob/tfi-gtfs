@@ -43,6 +43,14 @@ export default defineRailway(() => {
   const postgresDatabase = postgres("postgres", {
     region: "europe-west4-drams3a",
   });
+  // Each Schedule Import leaves ~1.5 GB of page cache that Railway counts as
+  // memory; the limit makes the kernel reclaim it. Postgres itself peaks around
+  // 500 MB (128 MB shared_buffers, index builds, autovacuum after the load).
+  // postgres() only takes a region, so set the limit on its deploy config
+  postgresDatabase.deploy = {
+    ...postgresDatabase.deploy,
+    limitOverride: { containers: { memoryBytes: 768 * 1024 * 1024 } },
+  };
 
   const euWest4 = { "europe-west4-drams3a": { numReplicas: 1 } };
   const deployConfig: Partial<DeployConfig> = {
