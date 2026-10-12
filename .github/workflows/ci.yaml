@@ -19,7 +19,7 @@ concurrency:
 
 jobs:
   ci:
-    name: ⚡️ CI
+    name: ✅ Checks
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -62,22 +62,31 @@ jobs:
           cache: pnpm
 
       - name: Install deps
+        id: setup
         run: pnpm install --frozen-lockfile
 
+      # Checks below run even if an earlier one fails, so one run reports every
+      # failure. They still skip if any setup step above failed
       - name: Check
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
         run: pnpm biome ci .
 
       - name: Typecheck
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
         run: pnpm typecheck
 
       - name: Build
+        id: build
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
         run: pnpm build
 
       - name: Check migration journal
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
         working-directory: packages/tfi-gtfs-db
         run: pnpm drizzle-kit check
 
       - name: Check schema has no ungenerated changes
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
         working-directory: packages/tfi-gtfs-db
         run: |
           pnpm db:generate
@@ -89,14 +98,20 @@ jobs:
 
       # Same entry point Railway runs as the server pre-deploy command
       - name: Apply migrations to empty database
+        id: migrate
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: node apps/server/dist/migrate.mjs
 
       - name: Re-apply migrations (no-op)
+        if: ${{ !cancelled() && steps.migrate.outcome == 'success' }}
         run: node apps/server/dist/migrate.mjs
 
       # tfi-gtfs-db tests use their own database (see its vitest.config.ts)
       - name: Create test database
+        id: test-db
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
         run: psql "$DATABASE_URL" -c 'CREATE DATABASE "tfi-gtfs-test"'
 
       - name: Test
+        if: ${{ !cancelled() && steps.test-db.outcome == 'success' }}
         run: pnpm test
