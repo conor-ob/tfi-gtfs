@@ -1,5 +1,7 @@
 # Use the NTA's realtime-matched Schedule, filtered by Agency
 
+> The Agency filter is superseded by [0008](0008-drop-agency-filter.md): Watched Stops set the scope, and every Agency is kept. The choice of `GTFS_Realtime.zip` stands.
+
 The NTA publishes several static GTFS zips. We import `GTFS_Realtime.zip` rather than `GTFS_All.zip` or the per-operator zips, because it is the one whose trip IDs the Realtime Feed refers to; any other Schedule would leave Trip Updates unmatched. We only care about Dublin, so the Schedule Import keeps a configured list of Agencies and drops the rest.
 
 ## Consequences

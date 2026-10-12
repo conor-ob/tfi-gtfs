@@ -106,11 +106,11 @@ const feedInfo: FeedInfo = {
   feedContactEmail: null,
 };
 
-// Dublin Bus (1) is kept; Bus Éireann (2) is not. Trip t3 has no Stop Times,
-// and route r39 only runs at s2.
+// Agency 9 runs no Routes. Trip t3 has no Stop Times, route r39 only runs at
+// s2, and Bus Éireann's (2) r101 only runs at s3.
 function feedRows(): Rows {
   return {
-    agency: [agency("1"), agency("2")],
+    agency: [agency("1"), agency("2"), agency("9")],
     routes: [route("r46a", "1"), route("r39", "1"), route("r101", "2")],
     trips: [
       trip("t1", "r46a", "weekday"),
@@ -195,7 +195,7 @@ function fakeRepository(
 }
 
 describe("ScheduleImportServiceImpl", () => {
-  it("loads only the kept agencies and what their trips reference", async () => {
+  it("loads every Stop and what its Trips reference", async () => {
     const staging = new FakeStaging();
     const service = new ScheduleImportServiceImpl(
       fakeClient(feedRows()),
@@ -206,20 +206,28 @@ describe("ScheduleImportServiceImpl", () => {
 
     const ids = <T>(rows: T[] | undefined, key: keyof T) =>
       rows?.map((row) => row[key]);
-    expect(ids(staging.loaded.agency, "agencyId")).toEqual(["1"]);
-    expect(ids(staging.loaded.routes, "routeId")).toEqual(["r46a", "r39"]);
+    // Agency 9 runs no kept Route, so it is dropped
+    expect(ids(staging.loaded.agency, "agencyId")).toEqual(["1", "2"]);
+    expect(ids(staging.loaded.routes, "routeId")).toEqual([
+      "r46a",
+      "r39",
+      "r101",
+    ]);
     // t3 has no Stop Times, so neither it nor its Service Calendar is kept
-    expect(ids(staging.loaded.trips, "tripId")).toEqual(["t1", "t4"]);
+    expect(ids(staging.loaded.trips, "tripId")).toEqual(["t1", "t2", "t4"]);
     expect(ids(staging.loaded.calendar, "serviceId")).toEqual([
       "weekday",
+      "other",
       "weekend",
     ]);
     expect(ids(staging.loaded.calendar_dates, "serviceId")).toEqual([
       "weekday",
+      "other",
     ]);
     expect(ids(staging.loaded.stop_times, "stopId")).toEqual([
       "s1",
       "s2",
+      "s3",
       "s2",
     ]);
     // s1's parent Station is kept even though no Trip stops at it directly
@@ -227,6 +235,7 @@ describe("ScheduleImportServiceImpl", () => {
       "station",
       "s1",
       "s2",
+      "s3",
     ]);
     expect(staging.loaded.feed_info).toEqual([feedInfo]);
     expect(staging.published).toEqual({
@@ -238,13 +247,13 @@ describe("ScheduleImportServiceImpl", () => {
       status: "imported",
       feedVersion: "v2",
       rowCounts: {
-        agency: 1,
-        routes: 2,
-        trips: 2,
-        calendar: 2,
-        calendar_dates: 1,
-        stop_times: 3,
-        stops: 3,
+        agency: 2,
+        routes: 3,
+        trips: 3,
+        calendar: 3,
+        calendar_dates: 2,
+        stop_times: 4,
+        stops: 4,
         feed_info: 1,
       },
       unknownWatchedStopIds: [],
@@ -263,11 +272,20 @@ describe("ScheduleImportServiceImpl", () => {
 
     const ids = <T>(rows: T[] | undefined, key: keyof T) =>
       rows?.map((row) => row[key]);
-    // s3 is only served by a dropped Agency
-    expect(ids(staging.loaded.stop_times, "tripId")).toEqual(["t1", "t4"]);
-    expect(ids(staging.loaded.trips, "tripId")).toEqual(["t1", "t4"]);
-    expect(ids(staging.loaded.routes, "routeId")).toEqual(["r46a", "r39"]);
-    expect(ids(staging.loaded.stops, "stopId")).toEqual(["s2"]);
+    // s1 isn't watched, but t1 still serves s2; Bus Éireann's t2 serves s3
+    expect(ids(staging.loaded.stop_times, "tripId")).toEqual([
+      "t1",
+      "t2",
+      "t4",
+    ]);
+    expect(ids(staging.loaded.trips, "tripId")).toEqual(["t1", "t2", "t4"]);
+    expect(ids(staging.loaded.routes, "routeId")).toEqual([
+      "r46a",
+      "r39",
+      "r101",
+    ]);
+    expect(ids(staging.loaded.agency, "agencyId")).toEqual(["1", "2"]);
+    expect(ids(staging.loaded.stops, "stopId")).toEqual(["s2", "s3"]);
     expect(staging.published?.watchedStopIds).toEqual(["missing", "s2", "s3"]);
     expect(result).toMatchObject({ unknownWatchedStopIds: ["missing"] });
   });
