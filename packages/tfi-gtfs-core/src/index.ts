@@ -7,6 +7,7 @@ export {
   injectScheduleImportDependencies,
 } from "./module/dependencies";
 export type * from "./realtime/domain/types";
+export { tripUpdateKey } from "./realtime/domain/types";
 export { InMemoryTripUpdateStore } from "./realtime/in-memory-trip-update-store";
 export type { RealtimeService } from "./realtime/interfaces/inbound/realtime-service";
 export type { RealtimeFeedClient } from "./realtime/interfaces/outbound/realtime-feed-client";

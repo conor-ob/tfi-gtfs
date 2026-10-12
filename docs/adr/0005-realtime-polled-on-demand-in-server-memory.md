@@ -1,5 +1,7 @@
 # Realtime Feed is polled on demand and held in server memory
 
+> Superseded by [0009](0009-trip-updates-cached-in-redis-refreshed-on-read.md): no poller; Trip Updates are refreshed on read behind a Redis cooldown, and stored per Trip.
+
 The server itself polls the Realtime Feed and keeps only the latest snapshot of Trip Updates in memory, behind a core port. It polls only while Departures have been requested recently and sleeps otherwise. Railway cron can't run more often than every 5 minutes, the NTA API key is rate limited (one poller only), and nothing needs Realtime history, so Redis or a separate worker would add moving parts with no payoff yet.
 
 ## Considered Options

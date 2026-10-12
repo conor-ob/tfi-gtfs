@@ -37,6 +37,15 @@ jobs:
           --health-interval 2s
           --health-timeout 5s
           --health-retries 15
+      redis:
+        image: redis:8-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 2s
+          --health-timeout 5s
+          --health-retries 15
     env:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/tfi-gtfs
     steps:

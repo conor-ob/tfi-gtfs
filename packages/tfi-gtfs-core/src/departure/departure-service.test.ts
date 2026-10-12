@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   type TripUpdate,
   type TripUpdateSnapshot,
@@ -65,7 +65,7 @@ function fakeRealtime(tripUpdates?: TripUpdate[]): RealtimeService {
         ),
       }
     : null;
-  return { getTripUpdates: async () => snapshot, stop: () => {} };
+  return { getTripUpdates: async () => snapshot };
 }
 
 const delayed = (
@@ -177,26 +177,42 @@ describe("DepartureServiceImpl", () => {
     });
 
     expect(queries).toEqual([
+      // The look-back hour, for late Trips
+      {
+        stopId: "s1",
+        serviceDate: "2026-12-01",
+        fromTime: hours(33) + 1,
+        toTime: hours(34),
+        limit: 100,
+      },
+      {
+        stopId: "s1",
+        serviceDate: "2026-12-02",
+        fromTime: hours(9) + 1,
+        toTime: hours(10),
+        limit: 100,
+      },
+      // The next 24 hours, with spares for cancelled Trips
       {
         stopId: "s1",
         serviceDate: "2026-12-01",
         fromTime: hours(34) + 1,
         toTime: hours(58),
-        limit: 5,
+        limit: 15,
       },
       {
         stopId: "s1",
         serviceDate: "2026-12-02",
         fromTime: hours(10) + 1,
         toTime: hours(34),
-        limit: 5,
+        limit: 15,
       },
       {
         stopId: "s1",
         serviceDate: "2026-12-03",
         fromTime: 0,
         toTime: hours(10),
-        limit: 5,
+        limit: 15,
       },
     ]);
   });
@@ -299,6 +315,45 @@ describe("DepartureServiceImpl", () => {
     });
 
     expect(departures.map((d) => d.tripId)).toEqual(["late", "next"]);
+  });
+
+  it("leaves out passed Departures when there are no Trip Updates", async () => {
+    const { repository } = fakeRepository({
+      "2026-12-02": [
+        stopTime("gone", hours(9.5)),
+        stopTime("next", hours(10.25)),
+      ],
+    });
+    const service = new DepartureServiceImpl(repository, fakeRealtime());
+
+    const departures = await service.getDepartures({
+      stopId: "s1",
+      from: new Date("2026-12-02T10:00:00Z"),
+      limit: 10,
+    });
+
+    expect(departures.map((d) => d.tripId)).toEqual(["next"]);
+  });
+
+  it("asks for the Trip Updates of the Departures it found, once each", async () => {
+    const { repository } = fakeRepository({
+      "2026-12-01": [stopTime("t1", hours(24.5))],
+      "2026-12-02": [stopTime("t1", hours(0.75)), stopTime("t2", hours(1))],
+    });
+    const getTripUpdates = vi.fn(async () => null);
+    const service = new DepartureServiceImpl(repository, { getTripUpdates });
+
+    await service.getDepartures({
+      stopId: "s1",
+      from: new Date("2026-12-02T00:00:00Z"),
+      limit: 10,
+    });
+
+    expect(getTripUpdates).toHaveBeenCalledExactlyOnceWith([
+      "2026-12-01/t1",
+      "2026-12-02/t1",
+      "2026-12-02/t2",
+    ]);
   });
 
   it("leaves out cancelled Trips but still fills the limit", async () => {

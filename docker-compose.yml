@@ -1,5 +1,6 @@
-# Local Postgres for development and tests: `pnpm db:up` / `pnpm db:down`.
-# Uses the default port 5432, so stop any other local Postgres first.
+# Local Postgres and Redis for development and tests: `pnpm db:up` /
+# `pnpm db:down`. Uses the default ports 5432 and 6379, so stop any other local
+# Postgres or Redis first.
 services:
   postgres:
     image: postgres:18-alpine
@@ -18,6 +19,18 @@ services:
       - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d tfi-gtfs"]
+      interval: 2s
+      timeout: 5s
+      retries: 15
+
+  # Trip Updates are disposable, so no volume
+  redis:
+    image: redis:8-alpine
+    container_name: tfi-gtfs-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
       interval: 2s
       timeout: 5s
       retries: 15
