@@ -11,6 +11,7 @@ Turborepo + pnpm monorepo, TypeScript throughout, hexagonal architecture modelle
 | Path | Role |
 |---|---|
 | `apps/server` | Fastify server, composition root, tRPC at `/trpc`, Realtime poller |
+| `apps/web` | React + Tailwind page of live Departures at the Watched Stops, served by Caddy |
 | `jobs/schedule-sync` | Daily Railway cron: Schedule Import (own composition root, writes to Postgres directly) |
 | `packages/tfi-gtfs-core` | Domain, services, inbound/outbound ports. No I/O |
 | `packages/tfi-gtfs-db` | Drizzle schema + migrations, repositories, `COPY` loader and schema swap |
@@ -29,7 +30,7 @@ pnpm dev
 
 `tfi-gtfs-db` tests run against the `tfi-gtfs-test` database, so `pnpm db:up` before `pnpm test`.
 
-Env vars live in a per-package `.env`; copy each `.env.example`. `NTA_API_KEY` goes in `apps/server/.env`. `pnpm db:reset` wipes the database volume and starts fresh. It uses the default port 5432, so stop any other local Postgres (e.g. putting-pals') first.
+Env vars live in a per-package `.env`; copy each `.env.example`. `NTA_API_KEY` goes in `apps/server/.env`. `apps/web` proxies `/api` to the local server; set `API_PROXY_TARGET=https://<web domain>/api` in `apps/web/.env` to use production instead. `pnpm db:reset` wipes the database volume and starts fresh. It uses the default port 5432, so stop any other local Postgres (e.g. putting-pals') first.
 
 ## Design notes
 
@@ -48,7 +49,8 @@ Smaller decisions that don't warrant an ADR:
 - **Realtime polling**: `RealtimeService` in core polls once a minute (`REALTIME_POLL_INTERVAL_SECONDS`; the NTA doesn't publish its rate limit) while Departures were asked for in the last 10 minutes, and ignores a snapshot more than 5 minutes old. Decoded protobuf messages return defaults (`0`) for missing fields, so the adapter checks a field is present before reading a Delay.
 - **Staging load**: staging tables are created `EXCLUDING INDEXES`; primary keys and indexes are copied from the `gtfs` catalog after `COPY`, so duplicates fail the check and loads stay fast. Stops are kept when a kept Trip stops there, plus their parent Stations. A session advisory lock stops two imports overlapping, and the swap uses `lock_timeout = 10s` so it never stalls readers for long.
 - **Cron**: `schedule-sync` at `0 4 * * *` (Railway cron is UTC; the Schedule is published around 22:30 UTC).
-- **Deploy**: `.railway/railway.ts` declares the server, Postgres with its 5 GB `postgres-volume` (Railway provisions it with the database; declaring it adopts it so resizes go through IaC) and the `schedule-sync` cron in `europe-west4`. The server runs migrations as its pre-deploy command and stays at one replica, since Trip Updates live in its memory. `NTA_API_KEY` is `preserve()`d: set it once in the Railway dashboard and seal it there. Only secrets are `preserve()`d; other variables are declared in `railway.ts`, because a dashboard edit while a `.railway/` PR is open moves the environment, the pinned plan is refused on merge, and the failed check holds back that commit's deploy. `ORIGIN` is optional; CORS allows no browser origins unless it's set. Railway waits for a commit's GitHub checks before deploying it (`checkSuites`).
+- **Deploy**: `.railway/railway.ts` declares the server, Postgres with its 5 GB `postgres-volume` (Railway provisions it with the database; declaring it adopts it so resizes go through IaC) the `web` service with its domain, and the `schedule-sync` cron in `europe-west4`. The server runs migrations as its pre-deploy command and stays at one replica, since Trip Updates live in its memory. `NTA_API_KEY` is `preserve()`d: set it once in the Railway dashboard and seal it there. Only secrets are `preserve()`d; other variables are declared in `railway.ts`, because a dashboard edit while a `.railway/` PR is open moves the environment, the pinned plan is refused on merge, and the failed check holds back that commit's deploy. `ORIGIN` is optional; CORS allows no browser origins unless it's set. Railway waits for a commit's GitHub checks before deploying it (`checkSuites`).
+- **Web**: `apps/web` lists Departures for the stops hardcoded in `App.tsx` (keep them in step with `WATCHED_STOP_IDS`), refetching every 30 seconds, which also keeps the Realtime poller running while the page is open. Caddy serves the build and proxies `/api/*` to the server over Railway private networking, as in putting-pals, so the browser never calls the server directly. The page is public, with no auth.
 - **CI**: `ci.yaml` is one job against a Postgres 18 service: biome, typecheck, build, migration checks (journal, no ungenerated changes, `migrate.js` applies to an empty database and re-applies as a no-op), then tests. `railway-plan.yaml` plans PRs that touch `.railway/` and comments the diff; `railway-apply.yaml` applies that pinned plan on merge, so there's no manual trigger (use `railway config apply` locally after a dashboard change). Both use the `RAILWAY_TOKEN` project token secret.
 
 ## Roadmap
@@ -61,6 +63,7 @@ Smaller decisions that don't warrant an ADR:
 6. ~~**Deploy**~~: done. `.railway/railway.ts` with server, Postgres and the `schedule-sync` cron; `railway config plan` / `apply` from a linked checkout.
 7. ~~**CI**~~: done. `ci.yaml`, `railway-plan.yaml` and `railway-apply.yaml` under `.github/workflows`.
 8. ~~**Watched Stops**~~: done. `WATCHED_STOP_IDS` on `schedule-sync` (ADR 0007).
+9. ~~**Web**~~: done. `apps/web`, a single page of live Departures at the Watched Stops.
 
 ## Spikes
 
