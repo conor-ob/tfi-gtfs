@@ -57,12 +57,14 @@ export class DepartureRepositoryImpl implements DepartureRepository {
   async findScheduledStopTimes({
     stopId,
     serviceDate,
+    directionId,
     fromTime,
     toTime,
     limit,
   }: {
     stopId: string;
     serviceDate: string;
+    directionId?: number;
     fromTime: number;
     toTime: number;
     limit: number;
@@ -91,6 +93,9 @@ export class DepartureRepositoryImpl implements DepartureRepository {
         and(
           eq(stopTimesTable.stopId, stopId),
           between(stopTimesTable.departureTime, fromTime, toTime),
+          directionId === undefined
+            ? undefined
+            : eq(tripsTable.directionId, directionId),
           or(
             isNull(stopTimesTable.pickupType),
             ne(stopTimesTable.pickupType, NO_PICKUP),

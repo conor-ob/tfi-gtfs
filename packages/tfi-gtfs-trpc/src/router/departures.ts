@@ -10,6 +10,8 @@ export const departuresRouter = router({
         stopId: z.string().min(1),
         /** Earliest Departure to include (Predicted, else Scheduled); defaults to now */
         from: z.date().optional(),
+        /** Only Trips in this direction (GTFS `direction_id`); defaults to both */
+        directionId: z.union([z.literal(0), z.literal(1)]).optional(),
         limit: z.number().int().min(1).max(50).default(10),
       }),
     )

@@ -34,5 +34,7 @@ export type DepartureQuery = {
    * defaults to now
    */
   from?: Date;
+  /** Only Trips in this direction (GTFS `direction_id`, 0 or 1); defaults to both */
+  directionId?: number;
   limit: number;
 };

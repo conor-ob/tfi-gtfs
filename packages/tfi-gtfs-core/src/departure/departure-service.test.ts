@@ -93,7 +93,9 @@ function fakeRepository(byServiceDate: Record<string, ScheduledStopTime[]>) {
         .filter(
           (row) =>
             row.departureTime >= query.fromTime &&
-            row.departureTime <= query.toTime,
+            row.departureTime <= query.toTime &&
+            (query.directionId === undefined ||
+              row.directionId === query.directionId),
         )
         .sort((a, b) => a.departureTime - b.departureTime)
         .slice(0, query.limit);
@@ -213,6 +215,27 @@ describe("DepartureServiceImpl", () => {
     });
 
     expect(departures.map((d) => d.tripId)).toEqual(["a", "b", "c"]);
+  });
+
+  it("fills the limit with Departures in the given direction", async () => {
+    const { repository } = fakeRepository({
+      "2026-12-02": [
+        { ...stopTime("in1", hours(1)), directionId: 1 },
+        stopTime("out1", hours(2)),
+        { ...stopTime("in2", hours(3)), directionId: 1 },
+        stopTime("out2", hours(4)),
+      ],
+    });
+    const service = new DepartureServiceImpl(repository, fakeRealtime());
+
+    const departures = await service.getDepartures({
+      stopId: "s1",
+      from: new Date("2026-12-02T00:00:00Z"),
+      directionId: 0,
+      limit: 2,
+    });
+
+    expect(departures.map((d) => d.tripId)).toEqual(["out1", "out2"]);
   });
 
   it("defaults to now", async () => {

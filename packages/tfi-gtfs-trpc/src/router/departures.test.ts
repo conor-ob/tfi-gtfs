@@ -36,6 +36,29 @@ describe("departuresRouter", () => {
     });
   });
 
+  it("passes the direction to the service", async () => {
+    const getDepartures = vi.fn(async (): Promise<Departure[]> => []);
+
+    await callerWith(getDepartures).departures.getByStop({
+      stopId: "s1",
+      directionId: 1,
+    });
+
+    expect(getDepartures).toHaveBeenCalledWith({
+      stopId: "s1",
+      directionId: 1,
+      limit: 10,
+    });
+  });
+
+  it("rejects a direction other than 0 or 1", async () => {
+    const caller = callerWith(async () => []);
+
+    await expect(
+      caller.departures.getByStop({ stopId: "s1", directionId: 2 as 0 }),
+    ).rejects.toBeInstanceOf(TRPCError);
+  });
+
   it("returns NOT_FOUND for an unknown Stop", async () => {
     const caller = callerWith(async () => {
       throw new StopNotFoundError("missing");
