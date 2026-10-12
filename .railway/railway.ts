@@ -85,9 +85,6 @@ export default defineRailway(() => {
     build: dockerBuildConfig({
       dockerfilePath: "apps/web/Dockerfile",
     }),
-    networking: {
-      serviceDomains: { "tfi-gtfs-web.up.railway.app": { port: 8080 } },
-    },
     deploy: {
       ...deployConfig,
       healthcheckPath: "/",
