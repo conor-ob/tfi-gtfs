@@ -145,7 +145,11 @@ describe("DepartureRepositoryImpl", () => {
       await staging.load(table, from(schedule[table] as never[]));
     }
     expect(await staging.check()).toEqual([]);
-    await staging.publish({ feedVersion: "v1", etag: null });
+    await staging.publish({
+      feedVersion: "v1",
+      etag: null,
+      watchedStopIds: null,
+    });
   });
 
   afterAll(async () => {

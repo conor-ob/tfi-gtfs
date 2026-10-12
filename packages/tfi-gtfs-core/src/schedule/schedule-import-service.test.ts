@@ -106,18 +106,30 @@ const feedInfo: FeedInfo = {
   feedContactEmail: null,
 };
 
-// Dublin Bus (1) is kept; Bus Éireann (2) is not
+// Dublin Bus (1) is kept; Bus Éireann (2) is not. Trip t3 has no Stop Times,
+// and route r39 only runs at s2.
 function feedRows(): Rows {
   return {
     agency: [agency("1"), agency("2")],
-    routes: [route("r46a", "1"), route("r101", "2")],
-    trips: [trip("t1", "r46a", "weekday"), trip("t2", "r101", "other")],
-    calendar: [calendar("weekday"), calendar("other")],
+    routes: [route("r46a", "1"), route("r39", "1"), route("r101", "2")],
+    trips: [
+      trip("t1", "r46a", "weekday"),
+      trip("t2", "r101", "other"),
+      trip("t3", "r46a", "empty"),
+      trip("t4", "r39", "weekend"),
+    ],
+    calendar: [
+      calendar("weekday"),
+      calendar("other"),
+      calendar("empty"),
+      calendar("weekend"),
+    ],
     calendar_dates: [calendarDate("weekday"), calendarDate("other")],
     stop_times: [
       stopTime("t1", "s1", 1),
       stopTime("t1", "s2", 2),
       stopTime("t2", "s3", 1),
+      stopTime("t4", "s2", 1),
     ],
     stops: [
       stop("station"),
@@ -195,13 +207,21 @@ describe("ScheduleImportServiceImpl", () => {
     const ids = <T>(rows: T[] | undefined, key: keyof T) =>
       rows?.map((row) => row[key]);
     expect(ids(staging.loaded.agency, "agencyId")).toEqual(["1"]);
-    expect(ids(staging.loaded.routes, "routeId")).toEqual(["r46a"]);
-    expect(ids(staging.loaded.trips, "tripId")).toEqual(["t1"]);
-    expect(ids(staging.loaded.calendar, "serviceId")).toEqual(["weekday"]);
+    expect(ids(staging.loaded.routes, "routeId")).toEqual(["r46a", "r39"]);
+    // t3 has no Stop Times, so neither it nor its Service Calendar is kept
+    expect(ids(staging.loaded.trips, "tripId")).toEqual(["t1", "t4"]);
+    expect(ids(staging.loaded.calendar, "serviceId")).toEqual([
+      "weekday",
+      "weekend",
+    ]);
     expect(ids(staging.loaded.calendar_dates, "serviceId")).toEqual([
       "weekday",
     ]);
-    expect(ids(staging.loaded.stop_times, "stopId")).toEqual(["s1", "s2"]);
+    expect(ids(staging.loaded.stop_times, "stopId")).toEqual([
+      "s1",
+      "s2",
+      "s2",
+    ]);
     // s1's parent Station is kept even though no Trip stops at it directly
     expect(ids(staging.loaded.stops, "stopId")).toEqual([
       "station",
@@ -209,28 +229,58 @@ describe("ScheduleImportServiceImpl", () => {
       "s2",
     ]);
     expect(staging.loaded.feed_info).toEqual([feedInfo]);
-    expect(staging.published).toEqual({ feedVersion: "v2", etag: "etag-2" });
+    expect(staging.published).toEqual({
+      feedVersion: "v2",
+      etag: "etag-2",
+      watchedStopIds: null,
+    });
     expect(result).toEqual({
       status: "imported",
       feedVersion: "v2",
       rowCounts: {
         agency: 1,
-        routes: 1,
-        trips: 1,
-        calendar: 1,
+        routes: 2,
+        trips: 2,
+        calendar: 2,
         calendar_dates: 1,
-        stop_times: 2,
+        stop_times: 3,
         stops: 3,
         feed_info: 1,
       },
+      unknownWatchedStopIds: [],
     });
+  });
+
+  it("loads only the Watched Stops and the Trips that serve them", async () => {
+    const staging = new FakeStaging();
+    const service = new ScheduleImportServiceImpl(
+      fakeClient(feedRows()),
+      fakeRepository(staging),
+      { watchedStopIds: ["s2", "s3", "missing", "s2"] },
+    );
+
+    const result = await service.importSchedule();
+
+    const ids = <T>(rows: T[] | undefined, key: keyof T) =>
+      rows?.map((row) => row[key]);
+    // s3 is only served by a dropped Agency
+    expect(ids(staging.loaded.stop_times, "tripId")).toEqual(["t1", "t4"]);
+    expect(ids(staging.loaded.trips, "tripId")).toEqual(["t1", "t4"]);
+    expect(ids(staging.loaded.routes, "routeId")).toEqual(["r46a", "r39"]);
+    expect(ids(staging.loaded.stops, "stopId")).toEqual(["s2"]);
+    expect(staging.published?.watchedStopIds).toEqual(["missing", "s2", "s3"]);
+    expect(result).toMatchObject({ unknownWatchedStopIds: ["missing"] });
   });
 
   it("skips the import when the feed is unchanged", async () => {
     const staging = new FakeStaging();
     const service = new ScheduleImportServiceImpl(
       fakeClient(feedRows()),
-      fakeRepository(staging, { feedVersion: "v2", etag: "etag-2" }),
+      fakeRepository(staging, {
+        feedVersion: "v2",
+        etag: "etag-2",
+        watchedStopIds: null,
+      }),
     );
 
     const result = await service.importSchedule();
@@ -239,11 +289,56 @@ describe("ScheduleImportServiceImpl", () => {
     expect(staging.loaded).toEqual({});
   });
 
+  it("skips the import when the Watched Stops are the same in any order", async () => {
+    const staging = new FakeStaging();
+    const service = new ScheduleImportServiceImpl(
+      fakeClient(feedRows()),
+      fakeRepository(staging, {
+        feedVersion: "v2",
+        etag: "etag-2",
+        watchedStopIds: ["s1", "s2"],
+      }),
+      { watchedStopIds: ["s2", "s1"] },
+    );
+
+    const result = await service.importSchedule();
+
+    expect(result.status).toBe("skipped");
+  });
+
+  it.each([
+    { previous: null, current: ["s1"] },
+    { previous: ["s1"], current: [] },
+    { previous: ["s1"], current: ["s1", "s2"] },
+  ])(
+    "imports when the Watched Stops changed from $previous to $current",
+    async ({ previous, current }) => {
+      const staging = new FakeStaging();
+      const service = new ScheduleImportServiceImpl(
+        fakeClient(feedRows()),
+        fakeRepository(staging, {
+          feedVersion: "v2",
+          etag: "etag-2",
+          watchedStopIds: previous,
+        }),
+        { watchedStopIds: current },
+      );
+
+      const result = await service.importSchedule();
+
+      expect(result.status).toBe("imported");
+    },
+  );
+
   it("imports when only the ETag changed", async () => {
     const staging = new FakeStaging();
     const service = new ScheduleImportServiceImpl(
       fakeClient(feedRows(), "etag-3"),
-      fakeRepository(staging, { feedVersion: "v2", etag: "etag-2" }),
+      fakeRepository(staging, {
+        feedVersion: "v2",
+        etag: "etag-2",
+        watchedStopIds: null,
+      }),
     );
 
     const result = await service.importSchedule();

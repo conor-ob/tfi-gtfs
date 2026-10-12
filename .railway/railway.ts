@@ -82,6 +82,8 @@ export default defineRailway(() => {
     source: tfiGtfs,
     env: {
       DATABASE_URL: postgresDatabase.env.DATABASE_URL,
+      // Set in the Railway dashboard; unset imports every Stop (see docs/adr/0007)
+      WATCHED_STOP_IDS: preserve(),
     },
     build: dockerBuildConfig({
       dockerfilePath: "jobs/schedule-sync/Dockerfile",

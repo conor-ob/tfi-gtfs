@@ -103,10 +103,14 @@ export type ScheduleTables = {
 
 export type ScheduleTableName = keyof ScheduleTables;
 
-/** A successful Schedule Import, used to skip unchanged feeds */
+/**
+ * A successful Schedule Import, used to skip unchanged feeds. The Watched
+ * Stops it kept are sorted, or null when it kept every Stop.
+ */
 export type ScheduleImport = {
   feedVersion: string;
   etag: string | null;
+  watchedStopIds: string[] | null;
 };
 
 export type ScheduleImportResult =
@@ -115,4 +119,6 @@ export type ScheduleImportResult =
       status: "imported";
       feedVersion: string;
       rowCounts: Record<ScheduleTableName, number>;
+      /** Watched Stops that aren't in the Schedule, e.g. a typo or a retired Stop */
+      unknownWatchedStopIds: string[];
     };

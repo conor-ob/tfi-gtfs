@@ -9,6 +9,7 @@ const database = injectDatabaseDependencies();
 const { scheduleImportService } = injectScheduleImportDependencies(
   new GtfsStaticScheduleFeedClient(env.SCHEDULE_URL),
   database.scheduleImportRepository,
+  { watchedStopIds: env.WATCHED_STOP_IDS },
 );
 
 const started = performance.now();
@@ -22,6 +23,12 @@ try {
   if (result.status === "imported") {
     // biome-ignore lint/suspicious/noConsole: job output
     console.table(result.rowCounts);
+    if (result.unknownWatchedStopIds.length > 0) {
+      // biome-ignore lint/suspicious/noConsole: job output
+      console.warn(
+        `schedule-sync: Watched Stops not in the Schedule: ${result.unknownWatchedStopIds.join(", ")}`,
+      );
+    }
   }
 } catch (error) {
   // biome-ignore lint/suspicious/noConsole: job output

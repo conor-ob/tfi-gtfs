@@ -140,7 +140,11 @@ describe("ScheduleImportRepositoryImpl", () => {
     await loadAll(staging, rows);
 
     expect(await staging.check()).toEqual([]);
-    await staging.publish({ feedVersion: "v1", etag: '"abc"' });
+    await staging.publish({
+      feedVersion: "v1",
+      etag: '"abc"',
+      watchedStopIds: ["8220DB000007", "8220DB000747"],
+    });
 
     const { rows: agencies } = await database.execute(
       "SELECT agency_name FROM gtfs.agency",
@@ -167,6 +171,7 @@ describe("ScheduleImportRepositoryImpl", () => {
     expect(await repository.findLatestImport()).toEqual({
       feedVersion: "v1",
       etag: '"abc"',
+      watchedStopIds: ["8220DB000007", "8220DB000747"],
     });
   });
 

@@ -1,6 +1,5 @@
 # Schedule Import runs as its own job and writes directly to Postgres
 
-> Partly superseded by [0006](0006-schedule-served-from-sqlite-file.md): the job still runs separately, but builds a SQLite file instead of writing to Postgres.
 
 The Schedule Import runs as a daily Railway cron job (`jobs/schedule-sync`), separate from the server, and writes straight to Postgres with `COPY` instead of calling the server's API as putting-pals jobs do. It moves around ten million rows, which would be slow and fragile over HTTP, and it should not compete for memory and CPU with the process serving requests.
 
