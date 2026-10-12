@@ -6,7 +6,7 @@ Domain language lives in [CONTEXT.md](CONTEXT.md); architectural decisions in [d
 
 ## Layout
 
-Turborepo + pnpm monorepo, TypeScript throughout, hexagonal architecture modelled on `conor-ob/putting-pals`.
+Turborepo + pnpm monorepo, TypeScript throughout, hexagonal architecture.
 
 | Path | Role |
 |---|---|
@@ -31,7 +31,7 @@ pnpm dev
 
 `tfi-gtfs-db` tests run against the `tfi-gtfs-test` database and `tfi-gtfs-redis` tests against Redis database 1, so `pnpm db:up` before `pnpm test`.
 
-Env vars live in a per-package `.env`; copy each `.env.example`. `NTA_API_KEY` goes in `apps/server/.env`. `apps/web` proxies `/api` to the local server; set `API_PROXY_TARGET=https://<web domain>/api` in `apps/web/.env` to use production instead. `pnpm db:reset` wipes the database volume and starts fresh. It uses the default ports 5432 and 6379, so stop any other local Postgres (e.g. putting-pals') or Redis first. The server keeps Trip Updates in memory unless `TRIP_UPDATE_STORE=redis` (with `REDIS_URL`) is set in `apps/server/.env`.
+Env vars live in a per-package `.env`; copy each `.env.example`. `NTA_API_KEY` goes in `apps/server/.env`. `apps/web` proxies `/api` to the local server; set `API_PROXY_TARGET=https://<web domain>/api` in `apps/web/.env` to use production instead. `pnpm db:reset` wipes the database volume and starts fresh. It uses the default ports 5432 and 6379, so stop any other local Postgres or Redis first. The server keeps Trip Updates in memory unless `TRIP_UPDATE_STORE=redis` (with `REDIS_URL`) is set in `apps/server/.env`.
 
 ## Design notes
 
@@ -52,7 +52,7 @@ Smaller decisions that don't warrant an ADR:
 - **Cron**: `schedule-sync` at `0 4 * * *` (Railway cron is UTC; the Schedule is published around 22:30 UTC).
 - **Builds**: workspace packages export TypeScript source and are never built on their own. The server and `schedule-sync` are bundled with tsdown, which inlines `@tfi-gtfs/*` packages and their dependencies and leaves only each app's own npm dependencies external (the Docker images delete `src/`). `tsc` is only used for typechecking; in development the server runs with `tsx watch`.
 - **Deploy**: `.railway/railway.ts` declares the server, Postgres with its 5 GB `postgres-volume` (Railway provisions it with the database; declaring it adopts it so resizes go through IaC) the `web` service (its domain is added in the dashboard), and the `schedule-sync` cron in `europe-west4`. It also declares a `redis` database for Trip Updates (no volume needed; they're disposable). The server runs migrations as its pre-deploy command and stays at one replica for now. `NTA_API_KEY` is `preserve()`d: set it once in the Railway dashboard and seal it there. Only secrets are `preserve()`d; other variables are declared in `railway.ts`, because a dashboard edit while a `.railway/` PR is open moves the environment, the pinned plan is refused on merge, and the failed check holds back that commit's deploy. `ORIGIN` is optional; CORS allows no browser origins unless it's set. Railway waits for a commit's GitHub checks before deploying it (`checkSuites`).
-- **Web**: `apps/web` lists Departures for the stops hardcoded in `App.tsx` (keep them in step with `WATCHED_STOP_IDS`), refetching every 30 seconds, so Trip Updates are refreshed about once a minute while the page is open. Caddy serves the build and proxies `/api/*` to the server over Railway private networking, as in putting-pals, so the browser never calls the server directly. The page is public, with no auth.
+- **Web**: `apps/web` lists Departures for the stops hardcoded in `App.tsx` (keep them in step with `WATCHED_STOP_IDS`), refetching every 30 seconds, so Trip Updates are refreshed about once a minute while the page is open. Caddy serves the build and proxies `/api/*` to the server over Railway private networking, so the browser never calls the server directly. The page is public, with no auth.
 - **CI**: `ci.yaml` is one job against Postgres 18 and Redis 8 services: biome, typecheck, build, migration checks (journal, no ungenerated changes, `migrate.mjs` applies to an empty database and re-applies as a no-op), then tests. `railway-plan.yaml` plans PRs that touch `.railway/` and comments the diff; `railway-apply.yaml` applies that pinned plan on merge, so there's no manual trigger (use `railway config apply` locally after a dashboard change). Both use the `RAILWAY_TOKEN` project token secret.
 
 ## Roadmap
