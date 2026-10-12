@@ -28,7 +28,14 @@ const envSchema = z.object({
     .url()
     .default("https://api.nationaltransport.ie/gtfsr/v2/TripUpdates"),
   // The NTA throttles the API key but doesn't publish a rate
-  REALTIME_POLL_INTERVAL_SECONDS: z.coerce.number().int().min(10).default(60),
+  REALTIME_REFRESH_INTERVAL_SECONDS: z.coerce
+    .number()
+    .int()
+    .min(10)
+    .default(60),
+  // Where Trip Updates live (see docs/adr/0009)
+  TRIP_UPDATE_STORE: z.enum(["memory", "redis"]).default("memory"),
+  REDIS_URL: z.url().optional(),
   CI: z
     .string()
     .default("false")
@@ -36,4 +43,9 @@ const envSchema = z.object({
     .pipe(z.boolean()),
 });
 
-export const env = envSchema.parse(process.env);
+export const env = envSchema
+  .refine((env) => env.TRIP_UPDATE_STORE !== "redis" || env.REDIS_URL, {
+    message: "REDIS_URL is required when TRIP_UPDATE_STORE is redis",
+    path: ["REDIS_URL"],
+  })
+  .parse(process.env);

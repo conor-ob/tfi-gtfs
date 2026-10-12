@@ -27,10 +27,10 @@ export type TripUpdateFeed = {
   tripUpdates: TripUpdate[];
 };
 
-/** A Realtime Feed read, indexed for matching Departures */
+/** The asked-for Trip Updates from the latest Realtime Feed read */
 export type TripUpdateSnapshot = {
   timestamp: Date;
-  /** Keyed by `tripUpdateKey` */
+  /** Keyed by `tripUpdateKey`; only the asked-for Trips that have one */
   tripUpdates: ReadonlyMap<string, TripUpdate>;
 };
 

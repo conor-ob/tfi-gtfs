@@ -1,41 +1,34 @@
-import {
-  type TripUpdateFeed,
-  type TripUpdateSnapshot,
-  tripUpdateKey,
-} from "./domain/types";
+import type { TripUpdateSnapshot } from "./domain/types";
 import type { RealtimeService } from "./interfaces/inbound/realtime-service";
 import type { RealtimeFeedClient } from "./interfaces/outbound/realtime-feed-client";
 import type { TripUpdateStore } from "./interfaces/outbound/trip-update-store";
 
 export type RealtimeOptions = {
-  /** Time between reads of the Realtime Feed; the API key is rate limited */
-  pollIntervalMs: number;
-  /** Stop polling when nobody has asked for Trip Updates for this long */
-  idleAfterMs: number;
-  /** Treat a snapshot older than this as no Trip Updates at all */
+  /** Least time between reads of the Realtime Feed; the API key is rate limited */
+  refreshIntervalMs: number;
+  /** Treat Trip Updates older than this, by the feed's timestamp, as none */
   maxAgeMs: number;
+  /** How long a request with no Trip Updates at all waits for a read */
+  coldWaitMs: number;
   onError: (error: unknown) => void;
 };
 
 export const DEFAULT_REALTIME_OPTIONS: RealtimeOptions = {
-  pollIntervalMs: 60_000,
-  idleAfterMs: 10 * 60_000,
+  refreshIntervalMs: 60_000,
   maxAgeMs: 5 * 60_000,
+  coldWaitMs: 2_000,
   onError: () => {},
 };
 
 /**
- * Polls the Realtime Feed only while someone is asking for Trip Updates (see
- * docs/adr/0005-realtime-polled-on-demand-in-server-memory.md). The first
- * request after an idle spell wakes the poller but doesn't wait for it.
+ * Reads the Realtime Feed when a request finds the last read more than one
+ * interval old (see
+ * docs/adr/0009-trip-updates-cached-in-redis-refreshed-on-read.md). The
+ * request serves the Trip Updates it has without waiting, unless it has none
+ * at all.
  */
 export class RealtimeServiceImpl implements RealtimeService {
   private readonly options: RealtimeOptions;
-  private lastDemandAt = Number.NEGATIVE_INFINITY;
-  private lastPollAt = Number.NEGATIVE_INFINITY;
-  private timer: ReturnType<typeof setTimeout> | null = null;
-  private polling = false;
-  private stopped = false;
 
   constructor(
     private readonly realtimeFeedClient: RealtimeFeedClient,
@@ -47,67 +40,72 @@ export class RealtimeServiceImpl implements RealtimeService {
     this.options = { ...DEFAULT_REALTIME_OPTIONS, ...options };
   }
 
-  async getTripUpdates(): Promise<TripUpdateSnapshot | null> {
-    this.lastDemandAt = Date.now();
-    this.wake();
-    const snapshot = await this.tripUpdateStore.get();
-    if (
-      !snapshot ||
-      Date.now() - snapshot.timestamp.getTime() > this.options.maxAgeMs
-    ) {
-      return null;
+  async getTripUpdates(
+    keys: readonly string[],
+  ): Promise<TripUpdateSnapshot | null> {
+    const [snapshot, claimed] = await Promise.all([
+      this.read(keys),
+      this.claimRefresh(),
+    ]);
+    if (!claimed) return snapshot;
+
+    const refresh = this.refresh();
+    if (snapshot) return snapshot;
+    // Nothing to serve yet, so give this read a moment to land
+    if (await withTimeout(refresh, this.options.coldWaitMs)) {
+      return this.read(keys);
     }
-    return snapshot;
+    return null;
   }
 
-  stop(): void {
-    this.stopped = true;
-    if (this.timer) clearTimeout(this.timer);
-    this.timer = null;
-  }
-
-  private wake() {
-    if (this.timer || this.polling || this.stopped) return;
-    this.scheduleNextPoll();
-  }
-
-  /** Never polls sooner than one interval after the last poll, even on waking */
-  private scheduleNextPoll() {
-    const delay = Math.max(
-      0,
-      this.lastPollAt + this.options.pollIntervalMs - Date.now(),
-    );
-    this.timer = setTimeout(() => void this.poll(), delay);
-    // Don't keep the process alive just to poll
-    this.timer.unref?.();
-  }
-
-  private async poll() {
-    this.timer = null;
-    if (Date.now() - this.lastDemandAt > this.options.idleAfterMs) return;
-
-    this.polling = true;
-    this.lastPollAt = Date.now();
+  /** Never rejects: Departures must not fail because of Trip Updates */
+  private async read(keys: readonly string[]) {
     try {
-      const feed = await this.realtimeFeedClient.fetchTripUpdates();
-      await this.tripUpdateStore.set(toSnapshot(feed));
+      return await this.tripUpdateStore.getTripUpdates(keys);
     } catch (error) {
       this.options.onError(error);
-    } finally {
-      this.polling = false;
+      return null;
     }
-    if (!this.stopped) this.scheduleNextPoll();
+  }
+
+  private async claimRefresh() {
+    try {
+      return await this.tripUpdateStore.claimRefresh(
+        this.options.refreshIntervalMs,
+      );
+    } catch (error) {
+      this.options.onError(error);
+      return false;
+    }
+  }
+
+  /** Resolves true once fresh Trip Updates are stored */
+  private async refresh(): Promise<boolean> {
+    try {
+      const feed = await this.realtimeFeedClient.fetchTripUpdates();
+      const expiresAt = feed.timestamp.getTime() + this.options.maxAgeMs;
+      if (expiresAt <= Date.now()) return false;
+      await this.tripUpdateStore.replace(feed, new Date(expiresAt));
+      return true;
+    } catch (error) {
+      this.options.onError(error);
+      return false;
+    }
   }
 }
 
-function toSnapshot({ timestamp, tripUpdates }: TripUpdateFeed) {
-  return {
-    timestamp,
-    tripUpdates: new Map(
-      tripUpdates.map((tripUpdate) => [
-        tripUpdateKey(tripUpdate.tripId, tripUpdate.startDate),
-        tripUpdate,
-      ]),
-    ),
-  };
+/** The promise's value, or false if it takes longer than `ms` */
+async function withTimeout(
+  promise: Promise<boolean>,
+  ms: number,
+): Promise<boolean> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<false>((resolve) => {
+    timer = setTimeout(() => resolve(false), ms);
+  });
+  try {
+    return await Promise.race([promise, timeout]);
+  } finally {
+    clearTimeout(timer);
+  }
 }

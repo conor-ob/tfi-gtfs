@@ -41,28 +41,34 @@ export class DepartureServiceImpl implements DepartureService {
     const stop = await this.departureRepository.findStop(stopId);
     if (!stop) throw new StopNotFoundError(stopId);
 
-    const snapshot = await this.realtimeService.getTripUpdates();
     const at = from.getTime();
     const [recent, upcoming] = await Promise.all([
-      snapshot
-        ? this.scheduledBetween(
-            stopId,
-            directionId,
-            at - LOOKBACK_MS,
-            at - 1,
-            LOOKBACK_LIMIT,
-          )
-        : [],
+      this.scheduledBetween(
+        stopId,
+        directionId,
+        at - LOOKBACK_MS,
+        at - 1,
+        LOOKBACK_LIMIT,
+      ),
       this.scheduledBetween(
         stopId,
         directionId,
         at,
         at + HORIZON_MS,
-        snapshot ? limit + SPARE : limit,
+        limit + SPARE,
+      ),
+    ]);
+    // Only the Trips found above are looked up, so the look-back hour is
+    // queried before knowing whether there are Trip Updates to make it count
+    const snapshot = await this.realtimeService.getTripUpdates([
+      ...new Set(
+        [...recent, ...upcoming].map((departure) =>
+          tripUpdateKey(departure.tripId, departure.serviceDate),
+        ),
       ),
     ]);
 
-    return [...recent, ...upcoming]
+    return (snapshot ? [...recent, ...upcoming] : upcoming)
       .flatMap((departure) => {
         const predicted = snapshot
           ? predictDeparture(

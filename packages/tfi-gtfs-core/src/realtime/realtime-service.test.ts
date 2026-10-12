@@ -2,54 +2,73 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { TripUpdate, TripUpdateFeed } from "./domain/types";
 import { InMemoryTripUpdateStore } from "./in-memory-trip-update-store";
 import type { RealtimeFeedClient } from "./interfaces/outbound/realtime-feed-client";
+import type { TripUpdateStore } from "./interfaces/outbound/trip-update-store";
 import { RealtimeServiceImpl } from "./realtime-service";
 
-const MINUTE = 60_000;
+const SECOND = 1_000;
+const MINUTE = 60 * SECOND;
 
-const tripUpdate: TripUpdate = {
-  tripId: "t1",
+const tripUpdate = (tripId: string, delay = 120): TripUpdate => ({
+  tripId,
   startDate: "2026-12-02",
   canceled: false,
-  delay: 120,
+  delay,
   stopTimeUpdates: [],
-};
+});
+
+const KEYS = ["2026-12-02/t1"];
 
 /** Answers with a feed produced 10 seconds before each request */
 function fakeClient() {
   const fetchTripUpdates = vi.fn(
     async (): Promise<TripUpdateFeed> => ({
-      timestamp: new Date(Date.now() - 10_000),
-      tripUpdates: [tripUpdate],
+      timestamp: new Date(Date.now() - 10 * SECOND),
+      tripUpdates: [tripUpdate("t1"), tripUpdate("t2")],
     }),
   );
   const client: RealtimeFeedClient = { fetchTripUpdates };
   return { client, fetchTripUpdates };
 }
 
-describe("RealtimeServiceImpl", () => {
-  let service: RealtimeServiceImpl | undefined;
+/** A feed read that lands when `land` is called */
+function pending() {
+  let land = () => {};
+  const promise = new Promise<TripUpdateFeed>((resolve) => {
+    land = () =>
+      resolve({
+        timestamp: new Date(Date.now() - 10 * SECOND),
+        tripUpdates: [tripUpdate("t1", 300)],
+      });
+  });
+  return { promise, land: () => land() };
+}
 
+describe("RealtimeServiceImpl", () => {
   beforeEach(() => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-12-02T10:00:00Z"));
   });
 
   afterEach(() => {
-    service?.stop();
     vi.useRealTimers();
   });
 
-  function create(client: RealtimeFeedClient, onError = vi.fn()) {
-    service = new RealtimeServiceImpl(client, new InMemoryTripUpdateStore(), {
-      pollIntervalMs: MINUTE,
-      idleAfterMs: 5 * MINUTE,
+  function create(
+    client: RealtimeFeedClient,
+    {
+      onError = vi.fn(),
+      store = new InMemoryTripUpdateStore(),
+    }: { onError?: () => void; store?: TripUpdateStore } = {},
+  ) {
+    return new RealtimeServiceImpl(client, store, {
+      refreshIntervalMs: MINUTE,
       maxAgeMs: 3 * MINUTE,
+      coldWaitMs: 2 * SECOND,
       onError,
     });
-    return service;
   }
 
-  it("doesn't poll until someone asks for Trip Updates", async () => {
+  it("doesn't read the Realtime Feed until someone asks", async () => {
     const { client, fetchTripUpdates } = fakeClient();
     create(client);
 
@@ -58,24 +77,43 @@ describe("RealtimeServiceImpl", () => {
     expect(fetchTripUpdates).not.toHaveBeenCalled();
   });
 
-  it("wakes on the first request without waiting for the poll", async () => {
+  it("waits for the first read when it has no Trip Updates at all", async () => {
     const { client, fetchTripUpdates } = fakeClient();
     const service = create(client);
 
-    expect(await service.getTripUpdates()).toBeNull();
-    await vi.advanceTimersByTimeAsync(0);
+    const snapshot = await service.getTripUpdates(KEYS);
 
     expect(fetchTripUpdates).toHaveBeenCalledOnce();
-    const snapshot = await service.getTripUpdates();
-    expect(snapshot?.tripUpdates.get("2026-12-02/t1")).toEqual(tripUpdate);
+    // Only the asked-for Trips
+    expect(snapshot?.tripUpdates).toEqual(
+      new Map([["2026-12-02/t1", tripUpdate("t1")]]),
+    );
   });
 
-  it("polls once per interval however many requests arrive", async () => {
+  it("serves the Trip Updates it has while a due read is under way", async () => {
+    const { client, fetchTripUpdates } = fakeClient();
+    const service = create(client);
+    await service.getTripUpdates(KEYS);
+    await vi.advanceTimersByTimeAsync(MINUTE);
+    const read = pending();
+    fetchTripUpdates.mockReturnValueOnce(read.promise);
+
+    const stale = await service.getTripUpdates(KEYS);
+    read.land();
+    await vi.advanceTimersByTimeAsync(0);
+    const fresh = await service.getTripUpdates(KEYS);
+
+    expect(fetchTripUpdates).toHaveBeenCalledTimes(2);
+    expect(stale?.tripUpdates.get(KEYS[0] as string)?.delay).toBe(120);
+    expect(fresh?.tripUpdates.get(KEYS[0] as string)?.delay).toBe(300);
+  });
+
+  it("reads once per interval however many requests arrive", async () => {
     const { client, fetchTripUpdates } = fakeClient();
     const service = create(client);
 
-    for (let i = 0; i < 6; i++) {
-      await service.getTripUpdates();
+    for (let i = 0; i < 7; i++) {
+      await service.getTripUpdates(KEYS);
       await vi.advanceTimersByTimeAsync(MINUTE / 3);
     }
 
@@ -83,56 +121,78 @@ describe("RealtimeServiceImpl", () => {
     expect(fetchTripUpdates).toHaveBeenCalledTimes(3);
   });
 
-  it("goes back to sleep when nobody asks, and wakes no sooner than an interval after the last poll", async () => {
+  it("gives up waiting on a slow first read, and serves it once it lands", async () => {
     const { client, fetchTripUpdates } = fakeClient();
+    const read = pending();
+    fetchTripUpdates.mockReturnValueOnce(read.promise);
     const service = create(client);
 
-    await service.getTripUpdates();
-    await vi.advanceTimersByTimeAsync(20 * MINUTE);
-    // Polls at 0 to 5 minutes, then the poll at 6 minutes finds it idle
-    expect(fetchTripUpdates).toHaveBeenCalledTimes(6);
+    const waiting = service.getTripUpdates(KEYS);
+    // Another request meanwhile neither reads nor waits
+    expect(await service.getTripUpdates(KEYS)).toBeNull();
+    await vi.advanceTimersByTimeAsync(2 * SECOND);
+    expect(await waiting).toBeNull();
 
-    await service.getTripUpdates();
+    read.land();
     await vi.advanceTimersByTimeAsync(0);
-    expect(fetchTripUpdates).toHaveBeenCalledTimes(7);
+    expect(await service.getTripUpdates(KEYS)).not.toBeNull();
+    expect(fetchTripUpdates).toHaveBeenCalledOnce();
   });
 
-  it("treats an old snapshot as none", async () => {
-    const { client } = fakeClient();
-    const service = create(client);
-    await service.getTripUpdates();
-    await vi.advanceTimersByTimeAsync(0);
-
-    // Asleep after 6 minutes, so the snapshot from 5 minutes is left to age
-    await vi.advanceTimersByTimeAsync(9 * MINUTE);
-
-    expect(await service.getTripUpdates()).toBeNull();
-  });
-
-  it("reports a failed poll and keeps polling", async () => {
+  it("reports a failed read and tries again after an interval, not before", async () => {
     const { client, fetchTripUpdates } = fakeClient();
     const error = new Error("429 Too Many Requests");
     fetchTripUpdates.mockRejectedValueOnce(error);
     const onError = vi.fn();
-    const service = create(client, onError);
+    const service = create(client, { onError });
 
-    await service.getTripUpdates();
-    await vi.advanceTimersByTimeAsync(MINUTE);
-
+    expect(await service.getTripUpdates(KEYS)).toBeNull();
     expect(onError).toHaveBeenCalledWith(error);
-    expect(await service.getTripUpdates()).not.toBeNull();
+    await vi.advanceTimersByTimeAsync(MINUTE - 1);
+    expect(await service.getTripUpdates(KEYS)).toBeNull();
+    await vi.advanceTimersByTimeAsync(1);
+
+    expect(await service.getTripUpdates(KEYS)).not.toBeNull();
+    expect(fetchTripUpdates).toHaveBeenCalledTimes(2);
   });
 
-  it("stops polling when stopped", async () => {
+  it("treats Trip Updates older than the max age as none", async () => {
     const { client, fetchTripUpdates } = fakeClient();
     const service = create(client);
-    await service.getTripUpdates();
-    await vi.advanceTimersByTimeAsync(0);
+    await service.getTripUpdates(KEYS);
+    fetchTripUpdates.mockRejectedValueOnce(new Error("503"));
 
-    service.stop();
-    await service.getTripUpdates();
-    await vi.advanceTimersByTimeAsync(5 * MINUTE);
+    // Produced 10 seconds before the first read, so too old after this
+    await vi.advanceTimersByTimeAsync(3 * MINUTE - 10 * SECOND);
 
-    expect(fetchTripUpdates).toHaveBeenCalledOnce();
+    expect(await service.getTripUpdates(KEYS)).toBeNull();
+  });
+
+  it("doesn't store a feed that is already too old", async () => {
+    const { client, fetchTripUpdates } = fakeClient();
+    fetchTripUpdates.mockResolvedValueOnce({
+      timestamp: new Date(Date.now() - 4 * MINUTE),
+      tripUpdates: [tripUpdate("t1")],
+    });
+    const service = create(client);
+
+    expect(await service.getTripUpdates(KEYS)).toBeNull();
+  });
+
+  it("serves no Trip Updates when the store fails, rather than throwing", async () => {
+    const { client, fetchTripUpdates } = fakeClient();
+    const error = new Error("ECONNREFUSED");
+    const store: TripUpdateStore = {
+      getTripUpdates: async () => Promise.reject(error),
+      replace: async () => Promise.reject(error),
+      claimRefresh: async () => Promise.reject(error),
+    };
+    const onError = vi.fn();
+    const service = create(client, { onError, store });
+
+    expect(await service.getTripUpdates(KEYS)).toBeNull();
+    expect(onError).toHaveBeenCalledWith(error);
+    // Without a claim, the Realtime Feed isn't read at all
+    expect(fetchTripUpdates).not.toHaveBeenCalled();
   });
 });

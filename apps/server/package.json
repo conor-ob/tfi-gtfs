@@ -20,6 +20,7 @@
     "@tfi-gtfs/gtfs-realtime": "workspace:*",
     "@tfi-gtfs/tfi-gtfs-core": "workspace:*",
     "@tfi-gtfs/tfi-gtfs-db": "workspace:*",
+    "@tfi-gtfs/tfi-gtfs-redis": "workspace:*",
     "@tfi-gtfs/tfi-gtfs-trpc": "workspace:*",
     "@tfi-gtfs/tfi-gtfs-utils": "workspace:*",
     "@trpc/server": "catalog:",

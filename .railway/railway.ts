@@ -8,6 +8,7 @@ import {
   preserve,
   project,
   type ReferencableServiceNode,
+  redis,
   service,
   volume,
 } from "railway/iac";
@@ -49,18 +50,26 @@ export default defineRailway(() => {
     region: "europe-west4-drams3a",
   });
 
+  // Holds only the latest Trip Updates, which are disposable (see
+  // docs/adr/0009)
+  const redisDatabase = redis("redis", {
+    region: "europe-west4-drams3a",
+  });
+
   const euWest4 = { "europe-west4-drams3a": { numReplicas: 1 } };
   const deployConfig: Partial<DeployConfig> = {
     multiRegionConfig: euWest4,
   };
 
-  // One replica only: the Realtime poller and its Trip Updates live in server
-  // memory (see docs/adr/0005)
+  // One replica for now. Trip Updates and their refresh cooldown live in
+  // Redis, so more would share them (see docs/adr/0009)
   const server = service("server", {
     source: tfiGtfs,
     env: {
       PORT: "8080",
       DATABASE_URL: postgresDatabase.env.DATABASE_URL,
+      TRIP_UPDATE_STORE: "redis",
+      REDIS_URL: redisDatabase.env.REDIS_URL,
       // Set once in the Railway dashboard and sealed there, never in source
       NTA_API_KEY: preserve(),
     },
@@ -112,7 +121,11 @@ export default defineRailway(() => {
   });
 
   const jobs = group("jobs", [scheduleSync]);
-  const database = group("database", [postgresDatabase, postgresVolume]);
+  const database = group("database", [
+    postgresDatabase,
+    postgresVolume,
+    redisDatabase,
+  ]);
   const backend = group("backend", [server]);
   const frontend = group("frontend", [web]);
 
