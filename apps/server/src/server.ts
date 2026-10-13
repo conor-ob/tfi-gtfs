@@ -7,6 +7,8 @@ import registerLoggerPlugin from "~/plugins/logger";
 import registerModulePlugin from "~/plugins/module";
 import registerRateLimitPlugin from "~/plugins/ratelimit";
 import registerTrpcPlugin from "~/plugins/trpc";
+import registerWebsocketPlugin from "~/plugins/websocket";
+import registerDepartureBoardRoute from "~/routes/departure-board";
 import registerHealthCheckRoute from "~/routes/health";
 
 export function createServer(opts?: FastifyServerOptions) {
@@ -17,7 +19,9 @@ export function createServer(opts?: FastifyServerOptions) {
   registerCorsPlugin(fastify);
   registerRateLimitPlugin(fastify);
   registerModulePlugin(fastify);
+  registerWebsocketPlugin(fastify);
   registerTrpcPlugin(fastify);
+  registerDepartureBoardRoute(fastify);
   registerHealthCheckRoute(fastify);
 
   return fastify;

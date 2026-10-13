@@ -37,6 +37,7 @@ const stopTime = (
   routeId: "r46a",
   routeShortName: "46A",
   routeLongName: null,
+  routeColor: null,
   routeType: 3,
   agencyId: "1",
 });
@@ -49,6 +50,7 @@ const departure = (
   const { departureTime: _, ...rest } = stopTime(tripId, 0);
   return {
     ...rest,
+    stopName: "Parnell Square",
     serviceDate,
     scheduledDeparture: new Date(scheduledDeparture),
     predictedDeparture: null,
