@@ -32,9 +32,6 @@ const ERROR = "#ff3b30";
 // A Departure due in this many minutes or fewer flashes amber
 const DUE_SOON_MINUTES = 2;
 const DUE_SOON = HEADER;
-// A Departure predicted this many minutes or more late shows its delay
-const LATE_MINUTES = 2;
-const LATE = "#ff5a36";
 
 // Every redraw, fast enough for each LED step of a scrolling headsign
 const TICK_MS = 50;
@@ -407,7 +404,7 @@ function drawSections(pixels: Pixels, sections: Section[], moment: Moment) {
 }
 
 /**
- * A Departure's route, headsign, delay and when it's due. Its due time flashes
+ * A Departure's route, headsign and when it's due. Its due time flashes
  * amber once it's only minutes away, like the signs on the platform
  */
 function drawDeparture(
@@ -427,20 +424,11 @@ function drawDeparture(
     roll?: RowMotion["roll"];
   },
 ) {
-  const { predictedDeparture, scheduledDeparture } = departure;
   const due = formatDue(departure, now);
   const dueLeft = RIGHT - textWidth(due);
-  const realtime = predictedDeparture !== null;
+  const realtime = departure.predictedDeparture !== null;
   const iconLeft = dueLeft - 7;
-  const delayMinutes = predictedDeparture
-    ? Math.round(
-        (predictedDeparture.getTime() - scheduledDeparture.getTime()) / 60_000,
-      )
-    : 0;
-  const delay = delayMinutes >= LATE_MINUTES ? `+${delayMinutes}` : null;
-  const delayLeft =
-    (realtime ? iconLeft : dueLeft) - 2 - textWidth(delay ?? "");
-  const headsignRight = (delay ? delayLeft : realtime ? iconLeft : dueLeft) - 3;
+  const headsignRight = (realtime ? iconLeft : dueLeft) - 3;
   const dueSoon =
     Math.floor((departsAt(departure).getTime() - now.getTime()) / 60_000) <=
     DUE_SOON_MINUTES;
@@ -457,7 +445,6 @@ function drawDeparture(
       right: headsignRight,
     });
   }
-  if (delay) drawText(pixels, delay, delayLeft, top, LATE);
   if (realtime) drawRealtimeIcon(pixels, iconLeft, top, frame);
   if (!dueSoon || time % 1000 < 600) {
     drawDue(pixels, due, top, dueSoon ? DUE_SOON : TEXT, {
