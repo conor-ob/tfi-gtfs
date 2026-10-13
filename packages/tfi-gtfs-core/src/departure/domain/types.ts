@@ -11,12 +11,15 @@ export type ScheduledStopTime = {
   routeId: string;
   routeShortName: string | null;
   routeLongName: string | null;
+  /** Hex without the `#`, e.g. `FFD400` */
+  routeColor: string | null;
   routeType: number;
   agencyId: string;
 };
 
 /** A Trip leaving a Stop on one Service Day */
 export type Departure = Omit<ScheduledStopTime, "departureTime"> & {
+  stopName: string;
   /**
    * The Service Day the Trip belongs to, as `YYYY-MM-DD`. With `tripId` it
    * matches the Trip Update's `start_date`.

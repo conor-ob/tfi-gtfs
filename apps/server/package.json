@@ -15,11 +15,13 @@
   "dependencies": {
     "@fastify/cors": "^11.3.0",
     "@fastify/rate-limit": "^11.2.0",
+    "@fastify/websocket": "^11.3.4",
     "@mgcrea/fastify-request-logger": "^1.9.1",
     "@mgcrea/pino-pretty-compact": "^1.6.0",
     "@tfi-gtfs/gtfs-realtime": "workspace:*",
     "@tfi-gtfs/tfi-gtfs-core": "workspace:*",
     "@tfi-gtfs/tfi-gtfs-db": "workspace:*",
+    "@tfi-gtfs/tfi-gtfs-departure-board": "workspace:*",
     "@tfi-gtfs/tfi-gtfs-redis": "workspace:*",
     "@tfi-gtfs/tfi-gtfs-trpc": "workspace:*",
     "@tfi-gtfs/tfi-gtfs-utils": "workspace:*",
@@ -33,6 +35,7 @@
   "devDependencies": {
     "@total-typescript/tsconfig": "catalog:",
     "@types/node": "catalog:",
+    "@types/ws": "^8.18.2",
     "tsdown": "catalog:",
     "tsx": "catalog:",
     "typescript": "catalog:",

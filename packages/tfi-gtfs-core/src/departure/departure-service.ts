@@ -1,5 +1,6 @@
 import { tripUpdateKey } from "../realtime/domain/types";
 import type { RealtimeService } from "../realtime/interfaces/inbound/realtime-service";
+import type { Stop } from "../schedule/domain/types";
 import type { Departure, DepartureQuery } from "./domain/types";
 import type { DepartureService } from "./interfaces/inbound/departure-service";
 import type { DepartureRepository } from "./interfaces/outbound/departure-repository";
@@ -44,14 +45,14 @@ export class DepartureServiceImpl implements DepartureService {
     const at = from.getTime();
     const [recent, upcoming] = await Promise.all([
       this.scheduledBetween(
-        stopId,
+        stop,
         directionId,
         at - LOOKBACK_MS,
         at - 1,
         LOOKBACK_LIMIT,
       ),
       this.scheduledBetween(
-        stopId,
+        stop,
         directionId,
         at,
         at + HORIZON_MS,
@@ -89,7 +90,7 @@ export class DepartureServiceImpl implements DepartureService {
 
   /** Scheduled Departures between two instants (inclusive), earliest first */
   private async scheduledBetween(
-    stopId: string,
+    stop: Stop,
     directionId: number | undefined,
     from: number,
     until: number,
@@ -110,7 +111,7 @@ export class DepartureServiceImpl implements DepartureService {
         if (toTime < 0) return [];
         const stopTimes = await this.departureRepository.findScheduledStopTimes(
           {
-            stopId,
+            stopId: stop.stopId,
             serviceDate,
             directionId,
             fromTime: Math.max(0, Math.ceil((from - start) / 1000)),
@@ -121,6 +122,7 @@ export class DepartureServiceImpl implements DepartureService {
         return stopTimes.map(
           ({ departureTime, ...stopTime }): Departure => ({
             ...stopTime,
+            stopName: stop.stopName,
             serviceDate,
             scheduledDeparture: new Date(start + departureTime * 1000),
             predictedDeparture: null,
