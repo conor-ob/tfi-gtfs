@@ -843,13 +843,13 @@ function LedPanel({
 }
 
 /**
- * Each LED's own brightness, from 84% to full: real LEDs never quite match,
+ * Each LED's own brightness, from 60% to full: real LEDs never quite match,
  * and the same LED always looks the same, so it's a hash of where it is
  */
 function ledBrightness(x: number, y: number) {
   let hash = Math.imul(x, 374761393) + Math.imul(y, 668265263);
   hash = Math.imul(hash ^ (hash >>> 13), 1274126177);
-  return 0.84 + (((hash ^ (hash >>> 16)) >>> 0) / 2 ** 32) * 0.16;
+  return 0.6 + (((hash ^ (hash >>> 16)) >>> 0) / 2 ** 32) * 0.4;
 }
 
 function sameColors(a: (string | null)[], b: (string | null)[]) {
