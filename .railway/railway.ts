@@ -101,7 +101,7 @@ export default defineRailway(() => {
   });
 
   // The LED board on its own domain, served and proxied like web
-  const departuresBoard = service("departures-board", {
+  const dartboard = service("dartboard", {
     source: tfiGtfs,
     env: {
       PORT: "8080",
@@ -143,7 +143,7 @@ export default defineRailway(() => {
     redisDatabase,
   ]);
   const backend = group("backend", [server]);
-  const frontend = group("frontend", [web, departuresBoard]);
+  const frontend = group("frontend", [web, dartboard]);
 
   return project("tfi-gtfs", {
     resources: [backend, database, frontend, jobs],
