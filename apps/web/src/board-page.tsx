@@ -33,7 +33,7 @@ const ERROR = "#ff3b30";
 const DUE_SOON_MINUTES = 2;
 const DUE_SOON = HEADER;
 
-// Every redraw: the scrolling headsigns' LED steps and the clock's colon
+// Every redraw, fast enough for each LED step of a scrolling headsign
 const TICK_MS = 50;
 // Headsigns too long for their row pause, then scroll through and round again
 const SCROLL_LEDS_PER_SECOND = 15;
@@ -188,10 +188,7 @@ type Moment = {
   scroll: boolean;
 };
 
-/**
- * Each Stop's header, then its Departures or why there are none, and the
- * clock in the top corner
- */
+/** Each Stop's header, then its Departures or why there are none */
 function drawSections(pixels: Pixels, sections: Section[], moment: Moment) {
   const { time } = moment;
   const frame = Math.floor(time / 400) % 4;
@@ -205,11 +202,7 @@ function drawSections(pixels: Pixels, sections: Section[], moment: Moment) {
   // Centre the sections in whatever LEDs are left over
   let top = Math.floor((pixels.height - used) / 2);
   for (const [sectionIndex, section] of sections.entries()) {
-    const nameRight =
-      sectionIndex === 0 ? drawClock(pixels, top, time) - 4 : RIGHT;
-    drawText(pixels, section.stop.name, LEFT, top, HEADER, {
-      right: nameRight,
-    });
+    drawText(pixels, section.stop.name, LEFT, top, HEADER);
     for (let x = LEFT; x < RIGHT; x++) {
       setPixel(pixels, x, top + 10, HEADER_LINE);
     }
@@ -325,23 +318,6 @@ function drawScrollingText(
   const clip = { left, right };
   drawText(pixels, text, left - offset, top, color, { clip });
   drawText(pixels, text, left - offset + cycle, top, color, { clip });
-}
-
-/**
- * The time in the top corner, its colon blinking each second. Returns where
- * it starts, so the header beside it stops short
- */
-function drawClock(pixels: Pixels, top: number, time: number) {
-  const wallTime = performance.timeOrigin + time;
-  const [hours = "", minutes = ""] = clockTime
-    .format(new Date(wallTime))
-    .split(":");
-  const left = RIGHT - textWidth(`${hours}:${minutes}`);
-  const colonLeft = left + textWidth(hours) + 1;
-  drawText(pixels, hours, left, top, HEADER);
-  if (wallTime % 1000 < 500) drawText(pixels, ":", colonLeft, top, HEADER);
-  drawText(pixels, minutes, colonLeft + textWidth(":") + 1, top, HEADER);
-  return left;
 }
 
 const PLACEHOLDER_WIDTHS = [46, 62, 38, 56, 50, 60];
