@@ -8,13 +8,13 @@ export const STOPS = [
     directionId: 0 as const,
     walkTimeSeconds: 600,
   },
-  { stopId: "8250DB003062", name: "Breffni Road", walkTimeSeconds: 300 },
   {
     stopId: "8250IR0111",
     name: "Sandycove & Glasthule",
     directionId: 0 as const,
     walkTimeSeconds: 720,
   },
+  { stopId: "8250DB003062", name: "Breffni Road", walkTimeSeconds: 300 },
 ];
 
 export const REFETCH_INTERVAL_MS = 30_000;
