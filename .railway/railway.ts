@@ -116,7 +116,8 @@ export default defineRailway(() => {
     },
   });
 
-  // Railway cron is UTC; the Schedule is published around 22:30 UTC
+  // Railway cron is UTC, so this is 03:00 in Irish winter and 04:00 in
+  // summer; the Schedule is published around 22:30 UTC
   const scheduleSync = service("schedule-sync", {
     source: tfiGtfs,
     env: {
@@ -138,7 +139,7 @@ export default defineRailway(() => {
     }),
     deploy: {
       ...deployConfig,
-      cronSchedule: "0 4 * * *",
+      cronSchedule: "0 3 * * *",
       restartPolicyType: "NEVER",
     },
   });
