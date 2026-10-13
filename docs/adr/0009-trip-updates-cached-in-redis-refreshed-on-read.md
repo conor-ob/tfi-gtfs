@@ -17,6 +17,7 @@ The demand-gated poller is replaced by stale-while-revalidate on read. Each requ
 - A snapshot expires in Redis at the feed's timestamp + 5 minutes (`PXAT`/`PEXPIREAT`), so an empty read means no Trip Updates and nothing checks its age on read. A new snapshot replaces the old one (`DEL`, `HSET`) inside one `MULTI`, and reads are one `MULTI` too, so readers never see half of one.
 - The `TripUpdateStore` port becomes `getTripUpdates(keys)`, `replace(feed, expiresAt)` and `claimRefresh(cooldownMs)`, and the policy stays in core. `TRIP_UPDATE_STORE=memory|redis` picks the adapter. The in-memory store (the default) runs the same policy.
 - `DepartureService` always queries the hour of look-back, then drops those rows when there are no Trip Updates, because it only knows which Trips to look up after querying the Schedule.
+- Every cold request waits for the read under way, not just the one that claimed it, by sharing the read's promise within the process (added 2026-10-13: the web page asks for all its Stops in one batch, and only one of them got Predicted Departures). A cold request on another replica still doesn't wait.
 - Redis errors and timeouts are logged and treated as "no Trip Updates", so Departures never fail because of Redis.
 - The server can scale past one replica as far as Trip Updates are concerned, but stays at one for now.
 - First run (2026-10-12): about 3,400 Trip Updates take about 2.1 MB in Redis. A cold request that waits for the read took about 190 ms locally, and a warm one about 10 ms.

@@ -29,6 +29,8 @@ export const DEFAULT_REALTIME_OPTIONS: RealtimeOptions = {
  */
 export class RealtimeServiceImpl implements RealtimeService {
   private readonly options: RealtimeOptions;
+  /** This process's read of the Realtime Feed, while one is under way */
+  private inFlight: Promise<boolean> | null = null;
 
   constructor(
     private readonly realtimeFeedClient: RealtimeFeedClient,
@@ -47,11 +49,13 @@ export class RealtimeServiceImpl implements RealtimeService {
       this.read(keys),
       this.claimRefresh(),
     ]);
-    if (!claimed) return snapshot;
-
-    const refresh = this.refresh();
+    if (claimed) this.startRefresh();
     if (snapshot) return snapshot;
-    // Nothing to serve yet, so give this read a moment to land
+
+    // Nothing to serve yet, so give a read under way a moment to land, even
+    // one claimed by another request (the page asks for every Stop at once)
+    const refresh = this.inFlight;
+    if (!refresh) return null;
     if (await withTimeout(refresh, this.options.coldWaitMs)) {
       return this.read(keys);
     }
@@ -77,6 +81,14 @@ export class RealtimeServiceImpl implements RealtimeService {
       this.options.onError(error);
       return false;
     }
+  }
+
+  private startRefresh() {
+    const refresh = this.refresh();
+    this.inFlight = refresh;
+    void refresh.then(() => {
+      if (this.inFlight === refresh) this.inFlight = null;
+    });
   }
 
   /** Resolves true once fresh Trip Updates are stored */

@@ -121,6 +121,41 @@ describe("RealtimeServiceImpl", () => {
     expect(fetchTripUpdates).toHaveBeenCalledTimes(3);
   });
 
+  it("makes every request with no Trip Updates wait for the same read", async () => {
+    const { client, fetchTripUpdates } = fakeClient();
+    const read = pending();
+    fetchTripUpdates.mockReturnValueOnce(read.promise);
+    const service = create(client);
+
+    // As the page asks for each of its Stops in one batch
+    const waiting = Promise.all([
+      service.getTripUpdates(KEYS),
+      service.getTripUpdates(KEYS),
+      service.getTripUpdates(KEYS),
+    ]);
+    await vi.advanceTimersByTimeAsync(SECOND);
+    read.land();
+
+    for (const snapshot of await waiting) {
+      expect(snapshot?.tripUpdates.get(KEYS[0] as string)?.delay).toBe(300);
+    }
+    expect(fetchTripUpdates).toHaveBeenCalledOnce();
+  });
+
+  it("doesn't wait when no read is under way", async () => {
+    const { client, fetchTripUpdates } = fakeClient();
+    fetchTripUpdates.mockRejectedValueOnce(new Error("503"));
+    const service = create(client);
+    await service.getTripUpdates(KEYS);
+
+    // Inside the cooldown, so nothing claims a read
+    const snapshot = service.getTripUpdates(KEYS);
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(await snapshot).toBeNull();
+    expect(fetchTripUpdates).toHaveBeenCalledOnce();
+  });
+
   it("gives up waiting on a slow first read, and serves it once it lands", async () => {
     const { client, fetchTripUpdates } = fakeClient();
     const read = pending();
@@ -128,8 +163,6 @@ describe("RealtimeServiceImpl", () => {
     const service = create(client);
 
     const waiting = service.getTripUpdates(KEYS);
-    // Another request meanwhile neither reads nor waits
-    expect(await service.getTripUpdates(KEYS)).toBeNull();
     await vi.advanceTimersByTimeAsync(2 * SECOND);
     expect(await waiting).toBeNull();
 
