@@ -53,13 +53,10 @@ function setup(
   };
   const logger = { warn: vi.fn(), error: vi.fn() };
   const service = { getDepartures: vi.fn(getDepartures) };
-  const session = new DepartureBoardSession(
-    socket,
-    service,
-    logger,
-    { heartbeatIntervalMs: 30_000, scheduleIntervalMs: 30_000 },
-    () => new Date(),
-  );
+  const session = new DepartureBoardSession(socket, service, logger, {
+    heartbeatIntervalMs: 30_000,
+    scheduleIntervalMs: 30_000,
+  });
   const schedules = () =>
     messages.flatMap((message) =>
       message.event === "schedule"
@@ -103,7 +100,7 @@ describe("DepartureBoardSession", () => {
     session.close();
   });
 
-  it("asks for Departures from now plus the Walk Time, in the pair's direction", async () => {
+  it("asks for Departures beyond the Walk Time, in the pair's direction", async () => {
     const { session, service } = setup();
 
     session.receive(subscribe("*:0,dalkey,-300;*,breffni"));
@@ -112,13 +109,13 @@ describe("DepartureBoardSession", () => {
     expect(service.getDepartures.mock.calls.map(([query]) => query)).toEqual([
       {
         stopId: "dalkey",
-        from: new Date("2026-12-02T10:05:00Z"),
+        walkTimeSeconds: 300,
         directionId: 0,
         limit: 50,
       },
       {
         stopId: "breffni",
-        from: NOW,
+        walkTimeSeconds: 0,
         directionId: undefined,
         limit: 50,
       },

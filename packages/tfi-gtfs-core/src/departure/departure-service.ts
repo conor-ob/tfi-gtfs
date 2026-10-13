@@ -36,7 +36,8 @@ export class DepartureServiceImpl implements DepartureService {
 
   async getDepartures({
     stopId,
-    from = this.now(),
+    walkTimeSeconds = 0,
+    from = new Date(this.now().getTime() + walkTimeSeconds * 1000),
     directionId,
     limit,
   }: DepartureQuery): Promise<Departure[]> {
