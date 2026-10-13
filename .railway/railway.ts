@@ -108,7 +108,7 @@ export default defineRailway(() => {
       SERVER_URL: privateNetworkingUrl(server),
     },
     build: dockerBuildConfig({
-      dockerfilePath: "apps/departures-board/Dockerfile",
+      dockerfilePath: "apps/dartboard/Dockerfile",
     }),
     deploy: {
       ...deployConfig,
