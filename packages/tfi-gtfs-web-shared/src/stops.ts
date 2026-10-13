@@ -1,6 +1,6 @@
 // Keep in step with WATCHED_STOP_IDS in .railway/railway.ts: the Schedule
 // only has Departures for watched Stops. A Departure leaving sooner than the
-// Walk Time can't be caught, so /departures doesn't show it
+// Walk Time can't be caught, so apps/web's merged list doesn't show it
 export const STOPS = [
   {
     stopId: "8250IR0014",

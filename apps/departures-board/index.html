@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <!-- viewport-fit=cover lets the board reach under the notch; it must be
+         set here, not changed at runtime, or iOS can misplace a Home Screen app -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <!-- Read by iOS when it's added to the Home Screen, so it opens full screen
+         as "Departures". Not black-translucent: under a see-through status
+         bar, iOS draws the page from the top of the screen but cuts it off a
+         status bar short -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+    <meta name="apple-mobile-web-app-title" content="Departures" />
+    <meta name="theme-color" content="#050505" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <title>Departures</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

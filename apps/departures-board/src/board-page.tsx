@@ -1,15 +1,19 @@
 import {
+  type Departure,
+  departsAt,
+  STOPS,
+  useNow,
+  useStopDepartures,
+} from "@tfi-gtfs/tfi-gtfs-web-shared";
+import {
   type RefObject,
   useEffect,
   useLayoutEffect,
   useRef,
   useState,
 } from "react";
-import { departsAt, useNow } from "./departure-row";
+
 import { type Glyph, textWidth, toGlyphs } from "./led-font";
-import { useStopDepartures } from "./stop-departures";
-import { STOPS } from "./stops";
-import type { Departure } from "./trpc";
 
 // 128 LEDs across like the two 64×32 panels, plus a 1-LED border, and as many
 // LEDs tall as the screen allows. Each row of text is 9 LEDs, 11 apart; a
@@ -58,7 +62,6 @@ const clockTime = new Intl.DateTimeFormat("en-IE", {
  * section per Stop of its upcoming Departures, as many rows as fit
  */
 export function BoardPage() {
-  useFullScreenApp();
   const mainRef = useRef<HTMLElement>(null);
   const measured = useScreenSpace(mainRef);
   // Rows are worked out from the window until the board's space is measured,
@@ -71,10 +74,12 @@ export function BoardPage() {
   // Every Stop's header, the gaps between Stops, and the last row's unused 2
   const fixed = stopCount * HEADER_PITCH + (stopCount - 1) * STOP_GAP - 2;
   // LEDs are square, so the screen's shape sets how many fit down it, but
-  // always room for a row per Stop and the border
+  // always room for a row per Stop and the border. A window with no size yet
+  // (0×0 while it opens) has no shape, so it gets just that
+  const hasSize = viewport.width > 0 && viewport.height > 0;
   const height = Math.max(
     fixed + stopCount * ROW_PITCH + 2,
-    Math.floor((viewport.height / viewport.width) * WIDTH),
+    hasSize ? Math.floor((viewport.height / viewport.width) * WIDTH) : 0,
   );
   // The rows are shared equally, any spare going to the first Stops
   const rows = Math.floor((height - 2 - fixed) / ROW_PITCH);
@@ -890,46 +895,6 @@ function useScreenSpace(ref: RefObject<HTMLElement | null>) {
     };
   }, [ref]);
   return space;
-}
-
-/**
- * While the board is open: no page scroll or rubber-banding, and the tags iOS
- * reads when it's added to the Home Screen, so it opens full screen below a
- * black status bar. Only this page sets them
- */
-function useFullScreenApp() {
-  useEffect(() => {
-    const root = document.documentElement;
-    const previous = {
-      overflow: root.style.overflow,
-      overscrollBehavior: root.style.overscrollBehavior,
-      background: root.style.background,
-    };
-    root.style.overflow = "hidden";
-    root.style.overscrollBehavior = "none";
-    root.style.background = "#050505";
-
-    const added = [
-      ["apple-mobile-web-app-capable", "yes"],
-      ["mobile-web-app-capable", "yes"],
-      // Not black-translucent: under a see-through status bar, iOS draws the
-      // page from the top of the screen but cuts it off a status bar short
-      ["apple-mobile-web-app-status-bar-style", "black"],
-      ["apple-mobile-web-app-title", "Go"],
-      ["theme-color", "#050505"],
-    ].map(([name = "", content = ""]) => {
-      const meta = document.createElement("meta");
-      meta.name = name;
-      meta.content = content;
-      document.head.append(meta);
-      return meta;
-    });
-
-    return () => {
-      Object.assign(root.style, previous);
-      for (const meta of added) meta.remove();
-    };
-  }, []);
 }
 
 /** Milliseconds since the page opened, updated every `intervalMs` */

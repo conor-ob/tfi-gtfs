@@ -1,5 +1,6 @@
-import { DepartureRow, formatAgo, useNow } from "./departure-row";
-import { useStopDepartures } from "./stop-departures";
+import { useNow, useStopDepartures } from "@tfi-gtfs/tfi-gtfs-web-shared";
+
+import { DepartureRow, formatAgo } from "./departure-row";
 
 const ROWS = 10;
 

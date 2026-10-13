@@ -100,6 +100,22 @@ export default defineRailway(() => {
     },
   });
 
+  // The LED board on its own domain, served and proxied like web
+  const departuresBoard = service("departures-board", {
+    source: tfiGtfs,
+    env: {
+      PORT: "8080",
+      SERVER_URL: privateNetworkingUrl(server),
+    },
+    build: dockerBuildConfig({
+      dockerfilePath: "apps/departures-board/Dockerfile",
+    }),
+    deploy: {
+      ...deployConfig,
+      healthcheckPath: "/",
+    },
+  });
+
   // Railway cron is UTC; the Schedule is published around 22:30 UTC
   const scheduleSync = service("schedule-sync", {
     source: tfiGtfs,
@@ -127,7 +143,7 @@ export default defineRailway(() => {
     redisDatabase,
   ]);
   const backend = group("backend", [server]);
-  const frontend = group("frontend", [web]);
+  const frontend = group("frontend", [web, departuresBoard]);
 
   return project("tfi-gtfs", {
     resources: [backend, database, frontend, jobs],

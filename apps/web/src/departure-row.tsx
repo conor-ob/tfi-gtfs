@@ -1,6 +1,4 @@
-import { useEffect, useState } from "react";
-
-import type { Departure } from "./trpc";
+import { type Departure, departsAt } from "@tfi-gtfs/tfi-gtfs-web-shared";
 
 const clockTime = new Intl.DateTimeFormat("en-IE", {
   hour: "2-digit",
@@ -72,10 +70,6 @@ export function DepartureRow({
   );
 }
 
-export function departsAt(departure: Departure) {
-  return departure.predictedDeparture ?? departure.scheduledDeparture;
-}
-
 function formatDue(dueMinutes: number, departs: Date) {
   if (dueMinutes <= 0) return "Due";
   if (dueMinutes < 60) return `${dueMinutes} min`;
@@ -85,14 +79,4 @@ function formatDue(dueMinutes: number, departs: Date) {
 export function formatAgo(ms: number) {
   const seconds = Math.max(0, Math.round(ms / 1000));
   return seconds < 60 ? `${seconds}s ago` : `${Math.floor(seconds / 60)}m ago`;
-}
-
-/** The current time, ticking every few seconds so "due in" stays fresh */
-export function useNow(intervalMs = 5_000) {
-  const [now, setNow] = useState(() => new Date());
-  useEffect(() => {
-    const id = setInterval(() => setNow(new Date()), intervalMs);
-    return () => clearInterval(id);
-  }, [intervalMs]);
-  return now;
 }

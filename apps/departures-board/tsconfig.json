@@ -1,0 +1,10 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "extends": "@total-typescript/tsconfig/bundler/dom/app",
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    // node for the server packages typechecked through @tfi-gtfs/tfi-gtfs-trpc
+    "types": ["node", "vite/client"]
+  },
+  "exclude": ["dist"]
+}

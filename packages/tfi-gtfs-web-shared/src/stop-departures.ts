@@ -1,7 +1,6 @@
 import { useQueries } from "@tanstack/react-query";
-
-import { departsAt } from "./departure-row";
 import { REFETCH_INTERVAL_MS, STOPS } from "./stops";
+import { departsAt } from "./time";
 import { trpc } from "./trpc";
 
 /**
