@@ -29,6 +29,16 @@ const HEADER = "#ffb000";
 const HEADER_LINE = "#4d3500";
 const UNLIT = "#1a1a1a";
 const ERROR = "#ff3b30";
+// A Departure due in this many minutes or fewer flashes amber
+const DUE_SOON_MINUTES = 2;
+const DUE_SOON = HEADER;
+
+// Every redraw: the scrolling headsigns' LED steps and the clock's colon
+const TICK_MS = 50;
+// Headsigns too long for their row pause, then scroll through and round again
+const SCROLL_LEDS_PER_SECOND = 15;
+const SCROLL_PAUSE_MS = 2500;
+const SCROLL_GAP = 20;
 
 const clockTime = new Intl.DateTimeFormat("en-IE", {
   hour: "2-digit",
@@ -69,23 +79,20 @@ export function BoardPage() {
   );
 
   const now = useNow();
-  // Every Departure from now, Walk Time or not: it's checked on the way
   // Every Departure from now, Walk Time or not, to check on the way
   const { stops } = useStopDepartures({
     now,
     limit: Math.max(...rowsPerStop),
     walkTime: false,
   });
+  const [reducedMotion] = useState(
+    () => window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+  );
   const [bootStart] = useState(() =>
-    window.matchMedia("(prefers-reduced-motion: reduce)").matches
-      ? Number.NEGATIVE_INFINITY
-      : performance.now(),
+    reducedMotion ? Number.NEGATIVE_INFINITY : performance.now(),
   );
   const [booting, setBooting] = useState(true);
-  // Fast enough for the start-up wipe and the loading shimmer, else just the
-  // realtime icon's 400 ms steps
-  const loading = stops.some((s) => s.loading && s.departures.length === 0);
-  const time = useClock(booting || loading ? 50 : 400);
+  const time = useClock(TICK_MS);
   const bootElapsed = time - bootStart;
   useEffect(() => {
     if (booting && bootElapsed >= BOOT_MS) setBooting(false);
@@ -97,7 +104,7 @@ export function BoardPage() {
     rows: rowsPerStop[index] ?? 0,
   }));
   const pixels = createPixels(height);
-  drawSections(pixels, sections, now, time);
+  drawSections(pixels, sections, { now, time, scroll: !reducedMotion });
 
   // What the board says, for screen readers
   const label = sections
@@ -173,13 +180,20 @@ type Section = {
   rows: number;
 };
 
-/** Each Stop's header, then its Departures or why there are none */
-function drawSections(
-  pixels: Pixels,
-  sections: Section[],
-  now: Date,
-  time: number,
-) {
+type Moment = {
+  now: Date;
+  /** Milliseconds since the page opened, for animation */
+  time: number;
+  /** Whether long headsigns scroll, or are cut short */
+  scroll: boolean;
+};
+
+/**
+ * Each Stop's header, then its Departures or why there are none, and the
+ * clock in the top corner
+ */
+function drawSections(pixels: Pixels, sections: Section[], moment: Moment) {
+  const { time } = moment;
   const frame = Math.floor(time / 400) % 4;
   const used =
     sections.reduce(
@@ -188,23 +202,25 @@ function drawSections(
     ) +
     (sections.length - 1) * STOP_GAP -
     2;
-  // Headsigns line up across the board, after the widest route name
-  const routeWidth = Math.max(
-    0,
-    ...sections.flatMap(({ departures }) =>
-      departures.map((d) => textWidth(routeName(d))),
-    ),
-  );
-  const headsignLeft = LEFT + (routeWidth || 11) + 4;
-
   // Centre the sections in whatever LEDs are left over
   let top = Math.floor((pixels.height - used) / 2);
   for (const [sectionIndex, section] of sections.entries()) {
-    drawText(pixels, section.stop.name, LEFT, top, HEADER);
+    const nameRight =
+      sectionIndex === 0 ? drawClock(pixels, top, time) - 4 : RIGHT;
+    drawText(pixels, section.stop.name, LEFT, top, HEADER, {
+      right: nameRight,
+    });
     for (let x = LEFT; x < RIGHT; x++) {
       setPixel(pixels, x, top + 10, HEADER_LINE);
     }
     top += HEADER_PITCH;
+
+    // A Stop's headsigns line up after its widest route name
+    const routeWidth = Math.max(
+      0,
+      ...section.departures.map((d) => textWidth(routeName(d))),
+    );
+    const headsignLeft = LEFT + (routeWidth || 11) + 4;
 
     if (section.departures.length === 0) {
       if (section.error) {
@@ -228,7 +244,7 @@ function drawSections(
       drawDeparture(pixels, departure, {
         top: top + index * ROW_PITCH,
         headsignLeft,
-        now,
+        moment,
         frame,
       });
     });
@@ -236,27 +252,96 @@ function drawSections(
   }
 }
 
+/**
+ * A Departure's route, headsign and when it's due. Its due time flashes amber
+ * once it's only minutes away, like the signs on the platform
+ */
 function drawDeparture(
   pixels: Pixels,
   departure: Departure,
   {
     top,
     headsignLeft,
-    now,
+    moment: { now, time, scroll },
     frame,
-  }: { top: number; headsignLeft: number; now: Date; frame: number },
+  }: {
+    top: number;
+    headsignLeft: number;
+    moment: Moment;
+    frame: number;
+  },
 ) {
   const due = formatDue(departure, now);
   const dueLeft = RIGHT - textWidth(due);
   const realtime = departure.predictedDeparture !== null;
   const headsignRight = (realtime ? dueLeft - 7 : dueLeft) - 3;
+  const dueSoon =
+    Math.floor((departsAt(departure).getTime() - now.getTime()) / 60_000) <=
+    DUE_SOON_MINUTES;
 
   drawText(pixels, routeName(departure), LEFT, top, routeColor(departure));
-  drawText(pixels, departure.headsign ?? "", headsignLeft, top, TEXT, {
-    right: headsignRight,
-  });
+  const headsign = departure.headsign ?? "";
+  if (scroll) {
+    drawScrollingText(pixels, headsign, headsignLeft, top, TEXT, {
+      right: headsignRight,
+      time,
+    });
+  } else {
+    drawText(pixels, headsign, headsignLeft, top, TEXT, {
+      right: headsignRight,
+    });
+  }
   if (realtime) drawRealtimeIcon(pixels, dueLeft - 7, top, frame);
-  drawText(pixels, due, dueLeft, top, TEXT);
+  if (!dueSoon) {
+    drawText(pixels, due, dueLeft, top, TEXT);
+  } else if (time % 1000 < 600) {
+    drawText(pixels, due, dueLeft, top, DUE_SOON);
+  }
+}
+
+/**
+ * Text that fits is drawn as it is. Text too long for `left` to `right`
+ * waits, scrolls left until it comes round again, and repeats
+ */
+function drawScrollingText(
+  pixels: Pixels,
+  text: string,
+  left: number,
+  top: number,
+  color: string,
+  { right, time }: { right: number; time: number },
+) {
+  const width = textWidth(text);
+  if (left + width <= right) {
+    drawText(pixels, text, left, top, color, { right });
+    return;
+  }
+  const cycle = width + SCROLL_GAP;
+  const scrollMs = (cycle / SCROLL_LEDS_PER_SECOND) * 1000;
+  const elapsed = (time % (SCROLL_PAUSE_MS + scrollMs)) - SCROLL_PAUSE_MS;
+  const offset = Math.floor(
+    (Math.max(0, elapsed) * SCROLL_LEDS_PER_SECOND) / 1000,
+  );
+  const clip = { left, right };
+  drawText(pixels, text, left - offset, top, color, { clip });
+  drawText(pixels, text, left - offset + cycle, top, color, { clip });
+}
+
+/**
+ * The time in the top corner, its colon blinking each second. Returns where
+ * it starts, so the header beside it stops short
+ */
+function drawClock(pixels: Pixels, top: number, time: number) {
+  const wallTime = performance.timeOrigin + time;
+  const [hours = "", minutes = ""] = clockTime
+    .format(new Date(wallTime))
+    .split(":");
+  const left = RIGHT - textWidth(`${hours}:${minutes}`);
+  const colonLeft = left + textWidth(hours) + 1;
+  drawText(pixels, hours, left, top, HEADER);
+  if (wallTime % 1000 < 500) drawText(pixels, ":", colonLeft, top, HEADER);
+  drawText(pixels, minutes, colonLeft + textWidth(":") + 1, top, HEADER);
+  return left;
 }
 
 const PLACEHOLDER_WIDTHS = [46, 62, 38, 56, 50, 60];
@@ -304,21 +389,30 @@ function routeName(departure: Departure) {
   return departure.routeShortName ?? departure.routeId;
 }
 
-/** Draws whole glyphs from `left` until the next would pass `right` */
+/**
+ * Draws whole glyphs from `left` until the next would pass `right`, or with
+ * `clip`, every LED between its edges, glyphs cut where they cross them
+ */
 function drawText(
   pixels: Pixels,
   text: string,
   left: number,
   top: number,
   color: string,
-  { right = RIGHT }: { right?: number } = {},
+  {
+    right = RIGHT,
+    clip,
+  }: { right?: number; clip?: { left: number; right: number } } = {},
 ) {
   let x = left;
   for (const glyph of toGlyphs(text)) {
-    if (x + glyph.width > right) return;
+    if (clip ? x >= clip.right : x + glyph.width > right) return;
+    const glyphLeft = x;
     glyph.rows.forEach((row, dy) => {
       row.forEach((lit, dx) => {
-        if (lit) setPixel(pixels, x + dx, top + dy, color);
+        const px = glyphLeft + dx;
+        if (!lit || (clip && (px < clip.left || px >= clip.right))) return;
+        setPixel(pixels, px, top + dy, color);
       });
     });
     x += glyph.width + 1;
@@ -356,8 +450,20 @@ function setPixel(pixels: Pixels, x: number, y: number, color: string) {
   pixels.colors[y * WIDTH + x] = color;
 }
 
+/**
+ * The route's colour as a lit LED shows it: scaled up until its brightest
+ * channel is full, so dark brand colours glow instead of fading into the board
+ */
 function routeColor(departure: Departure) {
-  return departure.routeColor ? `#${departure.routeColor}` : TEXT;
+  const hex = departure.routeColor ?? "";
+  const channels = [0, 2, 4].map((i) =>
+    Number.parseInt(hex.slice(i, i + 2), 16),
+  );
+  const brightest = Math.max(...channels);
+  // Not a colour, or too near black to light up
+  if (!(brightest >= 32)) return TEXT;
+  const [r, g, b] = channels.map((c) => Math.round((c * 255) / brightest));
+  return `rgb(${r},${g},${b})`;
 }
 
 function formatDue(departure: Departure, now: Date) {
@@ -385,6 +491,18 @@ function LedPanel({
   wipe?: (x: number, y: number) => string | null | undefined;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  // Reused between frames: the lit LEDs, before their glow is added
+  const litRef = useRef<HTMLCanvasElement>(null);
+  // Every unlit LED, which only changes with the screen
+  const backgroundRef = useRef<{
+    geometry: string;
+    canvas: HTMLCanvasElement;
+  }>(null);
+  // What's on screen, so a frame that changes no LED isn't drawn again
+  const drawnRef = useRef<{
+    geometry: string;
+    colors: (string | null)[];
+  }>(null);
   const { screen, safe } = space;
 
   useEffect(() => {
@@ -394,8 +512,6 @@ function LedPanel({
     const scale = window.devicePixelRatio || 1;
     const width = Math.round(screen.width * scale);
     const height = Math.round(screen.height * scale);
-    canvas.width = width;
-    canvas.height = height;
 
     // The board, centred in the safe area, in device pixels
     const pitch =
@@ -410,35 +526,85 @@ function LedPanel({
     const firstRow = -Math.ceil(boardTop / pitch);
     const lastRow = Math.ceil((height - boardTop) / pitch);
 
-    const lit = document.createElement("canvas");
-    lit.width = width;
-    lit.height = height;
-    const litContext = lit.getContext("2d");
+    const geometry = [width, height, pitch, boardLeft, boardTop].join();
+    const drawn = drawnRef.current;
+    if (
+      !wipe &&
+      drawn?.geometry === geometry &&
+      sameColors(drawn.colors, pixels.colors)
+    ) {
+      return;
+    }
+    drawnRef.current = wipe ? null : { geometry, colors: pixels.colors };
 
-    context.fillStyle = "#050505";
-    context.fillRect(0, 0, width, height);
-    for (let y = firstRow; y < lastRow; y++) {
-      for (let x = firstColumn; x < lastColumn; x++) {
-        const onBoard = x >= 0 && x < WIDTH && y >= 0 && y < pixels.height;
-        const override = wipe?.(x, y);
-        const color =
-          override !== undefined
-            ? override
-            : onBoard
-              ? pixels.colors[y * WIDTH + x]
-              : null;
-        const target = color ? litContext : context;
-        if (!target) continue;
-        target.fillStyle = color ?? UNLIT;
-        target.beginPath();
-        target.arc(
-          boardLeft + (x + 0.5) * pitch,
-          boardTop + (y + 0.5) * pitch,
-          pitch * (color ? 0.42 : 0.36),
-          0,
-          Math.PI * 2,
-        );
-        target.fill();
+    if (canvas.width !== width) canvas.width = width;
+    if (canvas.height !== height) canvas.height = height;
+    litRef.current ??= document.createElement("canvas");
+    const lit = litRef.current;
+    if (lit.width !== width) lit.width = width;
+    if (lit.height !== height) lit.height = height;
+    const litContext = lit.getContext("2d");
+    if (!litContext) return;
+    litContext.clearRect(0, 0, width, height);
+
+    const drawLed = (
+      target: CanvasRenderingContext2D,
+      x: number,
+      y: number,
+      color: string | null,
+    ) => {
+      target.fillStyle = color ?? UNLIT;
+      target.beginPath();
+      target.arc(
+        boardLeft + (x + 0.5) * pitch,
+        boardTop + (y + 0.5) * pitch,
+        pitch * (color ? 0.42 : 0.36),
+        0,
+        Math.PI * 2,
+      );
+      target.fill();
+    };
+
+    if (wipe) {
+      // The wipe covers LEDs past the board's edges too, so all are drawn
+      context.fillStyle = "#050505";
+      context.fillRect(0, 0, width, height);
+      for (let y = firstRow; y < lastRow; y++) {
+        for (let x = firstColumn; x < lastColumn; x++) {
+          const onBoard = x >= 0 && x < WIDTH && y >= 0 && y < pixels.height;
+          const override = wipe(x, y);
+          const color =
+            override !== undefined
+              ? override
+              : onBoard
+                ? pixels.colors[y * WIDTH + x]
+                : null;
+          drawLed(color ? litContext : context, x, y, color ?? null);
+        }
+      }
+    } else {
+      if (backgroundRef.current?.geometry !== geometry) {
+        const background = document.createElement("canvas");
+        background.width = width;
+        background.height = height;
+        const backgroundContext = background.getContext("2d");
+        if (!backgroundContext) return;
+        backgroundContext.fillStyle = "#050505";
+        backgroundContext.fillRect(0, 0, width, height);
+        for (let y = firstRow; y < lastRow; y++) {
+          for (let x = firstColumn; x < lastColumn; x++) {
+            drawLed(backgroundContext, x, y, null);
+          }
+        }
+        backgroundRef.current = { geometry, canvas: background };
+      }
+      context.drawImage(backgroundRef.current.canvas, 0, 0);
+      // Lit LEDs are larger, so each covers the unlit one under it
+      for (let y = 0; y < pixels.height; y++) {
+        for (let x = 0; x < WIDTH; x++) {
+          const color = pixels.colors[y * WIDTH + x];
+          if (color) drawLed(litContext, x, y, color);
+        }
       }
     }
 
@@ -460,6 +626,10 @@ function LedPanel({
       className="absolute inset-0 block h-full w-full"
     />
   );
+}
+
+function sameColors(a: (string | null)[], b: (string | null)[]) {
+  return a.length === b.length && a.every((color, index) => color === b[index]);
 }
 
 /** The whole screen, and the safe area inside it, in CSS pixels */
