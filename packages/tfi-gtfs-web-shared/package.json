@@ -1,0 +1,36 @@
+{
+  "name": "@tfi-gtfs/tfi-gtfs-web-shared",
+  "version": "0.0.0",
+  "type": "module",
+  "private": true,
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "clean": "git clean -xdf .cache .turbo node_modules",
+    "typecheck": "tsc --noEmit true"
+  },
+  "dependencies": {
+    "@tanstack/react-query": "^5.104.0",
+    "@trpc/client": "catalog:",
+    "@trpc/tanstack-react-query": "catalog:",
+    "superjson": "catalog:"
+  },
+  "peerDependencies": {
+    "react": "^19.3.0"
+  },
+  "devDependencies": {
+    "@tfi-gtfs/tfi-gtfs-trpc": "workspace:*",
+    "@total-typescript/tsconfig": "catalog:",
+    "@trpc/server": "catalog:",
+    "@types/node": "catalog:",
+    "@types/react": "^19.3.0",
+    "react": "^19.3.0",
+    "typescript": "catalog:"
+  }
+}

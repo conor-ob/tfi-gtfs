@@ -35,6 +35,7 @@ updates:
 
   - package-ecosystem: docker
     directories:
+      - /apps/departures-board
       - /apps/server
       - /apps/web
       - /jobs/schedule-sync

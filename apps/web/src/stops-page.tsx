@@ -1,8 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
 
-import { DepartureRow, formatAgo, useNow } from "./departure-row";
-import { REFETCH_INTERVAL_MS, STOPS } from "./stops";
-import { trpc } from "./trpc";
+import {
+  REFETCH_INTERVAL_MS,
+  STOPS,
+  trpc,
+  useNow,
+} from "@tfi-gtfs/tfi-gtfs-web-shared";
+
+import { DepartureRow, formatAgo } from "./departure-row";
 
 /** A section of upcoming Departures per Stop, from now */
 export function StopsPage() {

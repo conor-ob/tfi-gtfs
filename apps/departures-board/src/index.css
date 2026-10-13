@@ -1,0 +1,8 @@
+@import "tailwindcss";
+
+/* No page scroll or rubber-banding behind the board */
+html {
+  overflow: hidden;
+  overscroll-behavior: none;
+  background: #050505;
+}

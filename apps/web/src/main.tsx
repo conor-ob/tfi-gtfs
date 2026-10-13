@@ -1,9 +1,9 @@
 import { QueryClientProvider } from "@tanstack/react-query";
+import { queryClient } from "@tfi-gtfs/tfi-gtfs-web-shared";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 
 import { App } from "./App";
-import { queryClient } from "./trpc";
 import "./index.css";
 
 const container = document.getElementById("root");

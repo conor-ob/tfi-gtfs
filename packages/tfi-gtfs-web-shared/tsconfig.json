@@ -1,0 +1,8 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "extends": "@total-typescript/tsconfig/bundler/dom/library-monorepo",
+  "compilerOptions": {
+    // node for the server packages typechecked through @tfi-gtfs/tfi-gtfs-trpc
+    "types": ["node"]
+  }
+}

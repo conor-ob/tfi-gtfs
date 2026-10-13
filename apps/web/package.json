@@ -11,17 +11,13 @@
   },
   "dependencies": {
     "@tanstack/react-query": "^5.104.0",
-    "@trpc/client": "catalog:",
-    "@trpc/tanstack-react-query": "catalog:",
+    "@tfi-gtfs/tfi-gtfs-web-shared": "workspace:*",
     "react": "^19.3.0",
-    "react-dom": "^19.3.0",
-    "superjson": "catalog:"
+    "react-dom": "^19.3.0"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.3",
-    "@tfi-gtfs/tfi-gtfs-trpc": "workspace:*",
     "@total-typescript/tsconfig": "catalog:",
-    "@trpc/server": "catalog:",
     "@types/node": "catalog:",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
