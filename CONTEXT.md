@@ -77,3 +77,13 @@ _Avoid_: Timetabled time, planned time
 **Predicted Departure**:
 The departure time after applying the latest Trip Update. Absent when no Trip Update covers the Departure.
 _Avoid_: Live time, realtime time, ETA
+
+**Walk Time**:
+How long it takes the owner to reach a Watched Stop from home. A Departure leaving sooner than that can't be caught, so it isn't shown; the ones shown keep their real departure times.
+_Avoid_: Offset, lead time, buffer
+
+### Departure Board
+
+**Departure Board**:
+A physical display in the owner's home showing upcoming Departures at some of the Watched Stops, a few rows at a time. It asks for the Departures it wants; nothing about a Departure Board is stored.
+_Avoid_: Display (the screen hardware), tracker, sign

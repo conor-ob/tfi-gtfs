@@ -1,6 +1,6 @@
 # tfi-gtfs
 
-Departures and nearby stops for Dublin public transport, built on the NTA's static GTFS Schedule and GTFS-Realtime feed. Consumed by the owner's own apps over tRPC; plain REST endpoints (e.g. for a home smart display) may follow.
+Departures and nearby stops for Dublin public transport, built on the NTA's static GTFS Schedule and GTFS-Realtime feed. Consumed by the owner's own apps over tRPC, and by a Departure Board at home over WebSocket.
 
 Domain language lives in [CONTEXT.md](CONTEXT.md); architectural decisions in [docs/adr](docs/adr).
 
@@ -53,6 +53,7 @@ Smaller decisions that don't warrant an ADR:
 - **Builds**: workspace packages export TypeScript source and are never built on their own. The server and `schedule-sync` are bundled with tsdown, which inlines `@tfi-gtfs/*` packages and their dependencies and leaves only each app's own npm dependencies external (the Docker images delete `src/`). `tsc` is only used for typechecking; in development the server runs with `tsx watch`.
 - **Deploy**: `.railway/railway.ts` declares the server, Postgres with its 5 GB `postgres-volume` (Railway provisions it with the database; declaring it adopts it so resizes go through IaC) the `web` service (its domain is added in the dashboard), and the `schedule-sync` cron in `europe-west4`. It also declares a `redis` database for Trip Updates (no volume needed; they're disposable). The server runs migrations as its pre-deploy command and stays at one replica for now. `NTA_API_KEY` is `preserve()`d: set it once in the Railway dashboard and seal it there. Only secrets are `preserve()`d; other variables are declared in `railway.ts`, because a dashboard edit while a `.railway/` PR is open moves the environment, the pinned plan is refused on merge, and the failed check holds back that commit's deploy. `ORIGIN` is optional; CORS allows no browser origins unless it's set. Railway waits for a commit's GitHub checks before deploying it (`checkSuites`).
 - **Web**: `apps/web` lists Departures for the stops hardcoded in `App.tsx` (keep them in step with `WATCHED_STOP_IDS`), refetching every 30 seconds, so Trip Updates are refreshed about once a minute while the page is open. Caddy serves the build and proxies `/api/*` to the server over Railway private networking, so the browser never calls the server directly. The page is public, with no auth.
+- **Departure Board**: an Adafruit Matrix Portal S3 with two Waveshare RGB-Matrix-P2.5-64x32 panels (about €67), on a 5 V USB-C supply, in a 3D-printed case with 12 M3×8 screws. It runs the stock Transit Tracker firmware, flashed from its web installer, and the server speaks its WebSocket protocol at `/departure-board` (ADR 0010), reached through Caddy at `wss://<web domain>/api/departure-board`. The board's settings are ESPHome entities you set on the LAN (`curl -X POST 'http://<board ip>/text/base_url_config/set?value=<url-encoded>'`, and the same for `schedule_config`), with list mode `nextPerRoute`. The schedule string is `route,stop,offset` pairs joined by `;`: `*` for any Route, `:0`/`:1` for a direction, and a negative offset in seconds for the Walk Time. For example, `*:0,8250IR0014,-300;*,8250DB003062,-240` means DART northbound at Dalkey with a 5-minute walk, plus every bus at Breffni Road with a 4-minute walk. The value is limited to 255 characters, and the Stops must be Watched Stops.
 - **CI**: `ci.yaml` is one job against Postgres 18 and Redis 8 services: biome, typecheck, build, migration checks (journal, no ungenerated changes, `migrate.mjs` applies to an empty database and re-applies as a no-op), then tests. `railway-plan.yaml` plans PRs that touch `.railway/` and comments the diff; `railway-apply.yaml` applies that pinned plan on merge, so there's no manual trigger (use `railway config apply` locally after a dashboard change). Both use the `RAILWAY_TOKEN` project token secret.
 
 ## Roadmap
@@ -67,6 +68,7 @@ Smaller decisions that don't warrant an ADR:
 8. ~~**Watched Stops**~~: done. `WATCHED_STOP_IDS` on `schedule-sync` (ADR 0007).
 9. ~~**Web**~~: done. `apps/web`, a single page of live Departures at the Watched Stops.
 10. ~~**Realtime in Redis**~~: done. `RedisTripUpdateStore` in `tfi-gtfs-redis`, refreshed on read instead of polled (ADR 0009).
+11. **Departure Board**: `tfi-gtfs-departure-board` inbound adapter and the `/departure-board` WebSocket route, speaking the Transit Tracker protocol (ADR 0010).
 
 ## Spikes
 
