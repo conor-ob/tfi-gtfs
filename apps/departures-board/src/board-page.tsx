@@ -74,10 +74,12 @@ export function BoardPage() {
   // Every Stop's header, the gaps between Stops, and the last row's unused 2
   const fixed = stopCount * HEADER_PITCH + (stopCount - 1) * STOP_GAP - 2;
   // LEDs are square, so the screen's shape sets how many fit down it, but
-  // always room for a row per Stop and the border
+  // always room for a row per Stop and the border. A window with no size yet
+  // (0×0 while it opens) has no shape, so it gets just that
+  const hasSize = viewport.width > 0 && viewport.height > 0;
   const height = Math.max(
     fixed + stopCount * ROW_PITCH + 2,
-    Math.floor((viewport.height / viewport.width) * WIDTH),
+    hasSize ? Math.floor((viewport.height / viewport.width) * WIDTH) : 0,
   );
   // The rows are shared equally, any spare going to the first Stops
   const rows = Math.floor((height - 2 - fixed) / ROW_PITCH);
