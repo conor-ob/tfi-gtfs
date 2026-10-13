@@ -2,8 +2,14 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- viewport-fit=cover lets /board reach under the notch; it must be set
+         here, not changed at runtime, or iOS can misplace a Home Screen app -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
     <meta name="color-scheme" content="light dark" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <title>Departures</title>
   </head>
   <body>

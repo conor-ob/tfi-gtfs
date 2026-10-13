@@ -1,11 +1,15 @@
+import { BoardPage } from "./board-page";
 import { DeparturesPage } from "./departures-page";
 import { StopsPage } from "./stops-page";
 
-/** `/departures` merges every Stop's Departures; anything else is `/stops` */
+/** `/stops` and `/departures` are lists; anything else is the board */
 export function App() {
-  return window.location.pathname === "/departures" ? (
-    <DeparturesPage />
-  ) : (
-    <StopsPage />
-  );
+  switch (window.location.pathname) {
+    case "/stops":
+      return <StopsPage />;
+    case "/departures":
+      return <DeparturesPage />;
+    default:
+      return <BoardPage />;
+  }
 }
