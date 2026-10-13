@@ -38,6 +38,7 @@ const stopTime = (
   routeShortName: "46A",
   routeLongName: null,
   routeColor: null,
+  routeTextColor: null,
   routeType: 3,
   agencyId: "1",
 });
@@ -50,6 +51,9 @@ const departure = (
   const { departureTime: _, ...rest } = stopTime(tripId, 0);
   return {
     ...rest,
+    // Dublin Bus's colours, since the Stop Time has none
+    routeColor: "F3C936",
+    routeTextColor: "000000",
     stopName: "Parnell Square",
     serviceDate,
     scheduledDeparture: new Date(scheduledDeparture),
@@ -129,6 +133,33 @@ describe("DepartureServiceImpl", () => {
     expect(departures).toStrictEqual([
       departure("late", "2026-12-01", "2026-12-02T00:45:00Z"),
       departure("early", "2026-12-02", "2026-12-02T06:00:00Z"),
+    ]);
+  });
+
+  it("fills empty route colours from the Agency and keeps the feed's", async () => {
+    const { repository } = fakeRepository({
+      "2026-12-02": [
+        stopTime("bus", hours(10)),
+        { ...stopTime("rail", hours(11)), agencyId: "IR" },
+        { ...stopTime("own", hours(12)), routeColor: "FFD400" },
+        { ...stopTime("other", hours(13)), agencyId: "unknown" },
+      ],
+    });
+    const service = new DepartureServiceImpl(repository, fakeRealtime());
+
+    const departures = await service.getDepartures({
+      stopId: "s1",
+      from: new Date("2026-12-02T09:00:00Z"),
+      limit: 10,
+    });
+
+    expect(
+      departures.map((d) => [d.tripId, d.routeColor, d.routeTextColor]),
+    ).toEqual([
+      ["bus", "F3C936", "000000"],
+      ["rail", "2F8539", "FFFFFF"],
+      ["own", "FFD400", "000000"],
+      ["other", null, null],
     ]);
   });
 

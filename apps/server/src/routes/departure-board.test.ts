@@ -17,6 +17,7 @@ const departure: Departure = {
   routeShortName: "DART",
   routeLongName: null,
   routeColor: "00A650",
+  routeTextColor: null,
   routeType: 2,
   agencyId: "irish-rail",
   serviceDate: "2026-12-02",

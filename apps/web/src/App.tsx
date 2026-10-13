@@ -15,13 +15,6 @@ const STOPS = [
   },
 ];
 
-// Route pill colours by Agency, with neutral for any other Agency
-const AGENCY_PILL_CLASSES: Record<string, string> = {
-  IR: "bg-[#2F8539] text-white",
-  "3": "bg-[#0052B7] text-white",
-  "1": "bg-[#F3C936] text-black",
-};
-
 const REFETCH_INTERVAL_MS = 30_000;
 
 const clockTime = new Intl.DateTimeFormat("en-IE", {
@@ -106,10 +99,16 @@ function DepartureRow({ departure, now }: { departure: Departure; now: Date }) {
   return (
     <li className="flex items-center gap-3 py-2">
       <span
-        className={`w-12 shrink-0 rounded px-1.5 py-0.5 text-center font-semibold text-sm ${
-          AGENCY_PILL_CLASSES[departure.agencyId] ??
-          "bg-neutral-900 text-white dark:bg-neutral-100 dark:text-neutral-900"
-        }`}
+        // Neutral unless the route has colours, which the inline style applies
+        className="w-12 shrink-0 rounded bg-neutral-900 px-1.5 py-0.5 text-center font-semibold text-sm text-white dark:bg-neutral-100 dark:text-neutral-900"
+        style={{
+          backgroundColor: departure.routeColor
+            ? `#${departure.routeColor}`
+            : undefined,
+          color: departure.routeTextColor
+            ? `#${departure.routeTextColor}`
+            : undefined,
+        }}
       >
         {departure.routeShortName ?? "?"}
       </span>

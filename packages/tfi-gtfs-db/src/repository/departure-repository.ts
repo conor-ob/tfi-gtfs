@@ -84,6 +84,7 @@ export class DepartureRepositoryImpl implements DepartureRepository {
         routeShortName: routesTable.routeShortName,
         routeLongName: routesTable.routeLongName,
         routeColor: routesTable.routeColor,
+        routeTextColor: routesTable.routeTextColor,
         routeType: routesTable.routeType,
         agencyId: routesTable.agencyId,
       })
