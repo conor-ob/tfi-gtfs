@@ -13,7 +13,7 @@ RUN npm install -g pnpm turbo \
 FROM base AS pruner
 WORKDIR /app
 COPY . .
-RUN turbo prune --scope=@tfi-gtfs/departures-board --docker
+RUN turbo prune --scope=@tfi-gtfs/dartboard --docker
 
 # Build stage
 FROM base AS builder
@@ -32,13 +32,13 @@ RUN pnpm install --frozen-lockfile
 COPY --from=pruner /app/out/full/ .
 
 # Turbo build
-RUN turbo build --filter=@tfi-gtfs/departures-board
+RUN turbo build --filter=@tfi-gtfs/dartboard
 
 # Static files served by Caddy, which also proxies /api to the server
 FROM caddy:2-alpine AS runner
 
-COPY --from=builder /app/apps/departures-board/dist /srv
-COPY apps/departures-board/Caddyfile /etc/caddy/Caddyfile
+COPY --from=builder /app/apps/dartboard/dist /srv
+COPY apps/dartboard/Caddyfile /etc/caddy/Caddyfile
 
 RUN caddy fmt --overwrite /etc/caddy/Caddyfile
 CMD ["caddy", "run", "--config", "/etc/caddy/Caddyfile", "--adapter", "caddyfile"]

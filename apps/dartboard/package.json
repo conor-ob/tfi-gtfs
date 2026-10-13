@@ -1,5 +1,5 @@
 {
-  "name": "@tfi-gtfs/departures-board",
+  "name": "@tfi-gtfs/dartboard",
   "version": "0.0.0",
   "type": "module",
   "private": true,
