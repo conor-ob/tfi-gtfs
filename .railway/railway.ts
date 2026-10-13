@@ -124,7 +124,14 @@ export default defineRailway(() => {
       // Comma-separated; changing it re-imports at the next run (see
       // docs/adr/0007). Declared here, not in the dashboard, so a change is
       // planned and reviewed like any other
-      WATCHED_STOP_IDS: "8250IR0014,8250DB003062,8250IR0111",
+      //   8220IR0134   Dublin Pearse
+      //   8220IR0135   Grand Canal Dock
+      //   8250DB003048 Sandycove Station
+      //   8250DB003062 Breffni Road
+      //   8250IR0014   Dalkey
+      //   8250IR0111   Sandycove and Glasthule
+      WATCHED_STOP_IDS:
+        "8220IR0134,8220IR0135,8250DB003048,8250DB003062,8250IR0014,8250IR0111",
     },
     build: dockerBuildConfig({
       dockerfilePath: "jobs/schedule-sync/Dockerfile",
