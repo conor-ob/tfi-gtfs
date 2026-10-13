@@ -6,7 +6,7 @@ import {
   useState,
 } from "react";
 import { departsAt, useNow } from "./departure-row";
-import { textWidth, toGlyphs } from "./led-font";
+import { type Glyph, textWidth, toGlyphs } from "./led-font";
 import { useStopDepartures } from "./stop-departures";
 import { STOPS } from "./stops";
 import type { Departure } from "./trpc";
@@ -29,6 +29,23 @@ const HEADER = "#ffb000";
 const HEADER_LINE = "#4d3500";
 const UNLIT = "#1a1a1a";
 const ERROR = "#ff3b30";
+// A Departure due in this many minutes or fewer flashes amber
+const DUE_SOON_MINUTES = 2;
+const DUE_SOON = HEADER;
+
+// Every redraw, fast enough for each LED step of a scrolling headsign
+const TICK_MS = 50;
+// Headsigns too long for their row pause, then scroll through and round again
+const SCROLL_LEDS_PER_SECOND = 15;
+const SCROLL_PAUSE_MS = 2500;
+const SCROLL_GAP = 20;
+// Rows slide to where they now belong, a changed due time rolls over, and a
+// new row sweeps in from the left once the others have moved
+const MOVE_MS = 450;
+const ROLL_MS = 350;
+const SWEEP_MS = 450;
+// On a Stop's first Departures, each row sweeps in this long after the last
+const SWEEP_STAGGER_MS = 90;
 
 const clockTime = new Intl.DateTimeFormat("en-IE", {
   hour: "2-digit",
@@ -69,23 +86,20 @@ export function BoardPage() {
   );
 
   const now = useNow();
-  // Every Departure from now, Walk Time or not: it's checked on the way
   // Every Departure from now, Walk Time or not, to check on the way
   const { stops } = useStopDepartures({
     now,
     limit: Math.max(...rowsPerStop),
     walkTime: false,
   });
+  const [reducedMotion] = useState(
+    () => window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+  );
   const [bootStart] = useState(() =>
-    window.matchMedia("(prefers-reduced-motion: reduce)").matches
-      ? Number.NEGATIVE_INFINITY
-      : performance.now(),
+    reducedMotion ? Number.NEGATIVE_INFINITY : performance.now(),
   );
   const [booting, setBooting] = useState(true);
-  // Fast enough for the start-up wipe and the loading shimmer, else just the
-  // realtime icon's 400 ms steps
-  const loading = stops.some((s) => s.loading && s.departures.length === 0);
-  const time = useClock(booting || loading ? 50 : 400);
+  const time = useClock(TICK_MS);
   const bootElapsed = time - bootStart;
   useEffect(() => {
     if (booting && bootElapsed >= BOOT_MS) setBooting(false);
@@ -96,8 +110,19 @@ export function BoardPage() {
     departures: section.departures.slice(0, rowsPerStop[index]),
     rows: rowsPerStop[index] ?? 0,
   }));
+  const motion = useRowMotion(sections, {
+    now,
+    time,
+    enabled: !reducedMotion,
+    firstSweepAt: bootStart + BOOT_MS,
+  });
   const pixels = createPixels(height);
-  drawSections(pixels, sections, now, time);
+  drawSections(pixels, sections, {
+    now,
+    time,
+    scroll: !reducedMotion,
+    motion,
+  });
 
   // What the board says, for screen readers
   const label = sections
@@ -158,28 +183,149 @@ function bootWipe(x: number, y: number, elapsed: number, height: number) {
   return BOOT_COLORS[layer];
 }
 
-/** One colour per LED, row by row; `null` is unlit */
-type Pixels = { height: number; colors: (string | null)[] };
+/** Left and top are the first LEDs inside, right and bottom the first past */
+type Bounds = { left: number; top: number; right: number; bottom: number };
+
+/**
+ * One colour per LED, row by row; `null` is unlit. Only LEDs inside `bounds`
+ * are drawn
+ */
+type Pixels = { height: number; colors: (string | null)[]; bounds: Bounds };
 
 function createPixels(height: number): Pixels {
-  return { height, colors: new Array(WIDTH * height).fill(null) };
+  return {
+    height,
+    colors: new Array(WIDTH * height).fill(null),
+    bounds: { left: 0, top: 0, right: WIDTH, bottom: height },
+  };
+}
+
+/** Runs `draw` with only the LEDs inside both `bounds` and the current ones */
+function withBounds(pixels: Pixels, bounds: Partial<Bounds>, draw: () => void) {
+  const outer = pixels.bounds;
+  pixels.bounds = {
+    left: Math.max(outer.left, bounds.left ?? outer.left),
+    top: Math.max(outer.top, bounds.top ?? outer.top),
+    right: Math.min(outer.right, bounds.right ?? outer.right),
+    bottom: Math.min(outer.bottom, bounds.bottom ?? outer.bottom),
+  };
+  draw();
+  pixels.bounds = outer;
 }
 
 type Section = {
-  stop: { name: string };
+  stop: { stopId: string; name: string };
   departures: Departure[];
   error: unknown;
   loading: boolean;
   rows: number;
 };
 
-/** Each Stop's header, then its Departures or why there are none */
-function drawSections(
-  pixels: Pixels,
+type Moment = {
+  now: Date;
+  /** Milliseconds since the page opened, for animation */
+  time: number;
+  /** Whether long headsigns scroll, or are cut short */
+  scroll: boolean;
+  /** How each row is moving, or `null` for no animation */
+  motion: Map<string, RowMotion> | null;
+};
+
+/** A Departure's row as last drawn, and what of it is still animating */
+type RowMotion = {
+  index: number;
+  due: string;
+  /** Slides from the row position `from` to `index` */
+  move?: { from: number; at: number };
+  /** The due time rolls over from `from` */
+  roll?: { from: string; at: number };
+  /** Sweeps in from the left from this time */
+  arrive?: number;
+};
+
+function departureKey(departure: Departure) {
+  return `${departure.tripId}-${departure.stopId}-${departure.serviceDate}`;
+}
+
+/** 0 at `start`, easing out to 1 after `duration` */
+function progress(time: number, start: number, duration: number) {
+  const linear = Math.min(1, Math.max(0, (time - start) / duration));
+  return 1 - (1 - linear) ** 3;
+}
+
+/** Where a row is now, in rows from its Stop's first, part way if moving */
+function rowPosition(row: RowMotion, time: number) {
+  if (!row.move) return row.index;
+  const { from, at } = row.move;
+  return from + (row.index - from) * progress(time, at, MOVE_MS);
+}
+
+/**
+ * Each shown Departure's row, compared with the last frame's so a change
+ * animates: a row that moves slides, a due time that changes rolls over, and
+ * a new row sweeps in. Kept in a ref and updated as the board is drawn, so a
+ * change animates from the frame it first shows; drawing the same frame again
+ * changes nothing
+ */
+function useRowMotion(
   sections: Section[],
-  now: Date,
-  time: number,
+  {
+    now,
+    time,
+    enabled,
+    firstSweepAt,
+  }: {
+    now: Date;
+    time: number;
+    enabled: boolean;
+    /** When a Stop's first rows can sweep in, so they're not under the boot */
+    firstSweepAt: number;
+  },
 ) {
+  const rowsRef = useRef(new Map<string, RowMotion>());
+  // Stops that have shown Departures, whose new rows wait for the rest to move
+  const shownRef = useRef(new Set<string>());
+  if (!enabled) return null;
+
+  const rows = rowsRef.current;
+  const present = new Set<string>();
+  for (const { stop, departures } of sections) {
+    const shown = shownRef.current.has(stop.stopId);
+    departures.forEach((departure, index) => {
+      const key = departureKey(departure);
+      present.add(key);
+      const due = formatDue(departure, now);
+      const row = rows.get(key);
+      if (!row) {
+        rows.set(key, {
+          index,
+          due,
+          arrive: shown
+            ? time + MOVE_MS
+            : Math.max(time, firstSweepAt) + index * SWEEP_STAGGER_MS,
+        });
+        return;
+      }
+      if (row.index !== index) {
+        row.move = { from: rowPosition(row, time), at: time };
+        row.index = index;
+      }
+      if (row.due !== due) {
+        row.roll = { from: row.due, at: time };
+        row.due = due;
+      }
+    });
+    if (departures.length > 0) shownRef.current.add(stop.stopId);
+  }
+  for (const key of rows.keys()) {
+    if (!present.has(key)) rows.delete(key);
+  }
+  return rows;
+}
+
+/** Each Stop's header, then its Departures or why there are none */
+function drawSections(pixels: Pixels, sections: Section[], moment: Moment) {
+  const { time } = moment;
   const frame = Math.floor(time / 400) % 4;
   const used =
     sections.reduce(
@@ -188,15 +334,6 @@ function drawSections(
     ) +
     (sections.length - 1) * STOP_GAP -
     2;
-  // Headsigns line up across the board, after the widest route name
-  const routeWidth = Math.max(
-    0,
-    ...sections.flatMap(({ departures }) =>
-      departures.map((d) => textWidth(routeName(d))),
-    ),
-  );
-  const headsignLeft = LEFT + (routeWidth || 11) + 4;
-
   // Centre the sections in whatever LEDs are left over
   let top = Math.floor((pixels.height - used) / 2);
   for (const [sectionIndex, section] of sections.entries()) {
@@ -205,6 +342,13 @@ function drawSections(
       setPixel(pixels, x, top + 10, HEADER_LINE);
     }
     top += HEADER_PITCH;
+
+    // A Stop's headsigns line up after its widest route name
+    const routeWidth = Math.max(
+      0,
+      ...section.departures.map((d) => textWidth(routeName(d))),
+    );
+    const headsignLeft = LEFT + (routeWidth || 11) + 4;
 
     if (section.departures.length === 0) {
       if (section.error) {
@@ -224,39 +368,165 @@ function drawSections(
         drawText(pixels, "No departures", LEFT, top, MUTED);
       }
     }
+    // Rows only draw in their Stop's own rows, so one sliding past is cut off
+    const rowsBounds = {
+      top,
+      bottom: top + section.rows * ROW_PITCH - 2,
+    };
     section.departures.forEach((departure, index) => {
-      drawDeparture(pixels, departure, {
-        top: top + index * ROW_PITCH,
-        headsignLeft,
-        now,
-        frame,
+      const row = moment.motion?.get(departureKey(departure));
+      const rowTop =
+        top + Math.round((row ? rowPosition(row, time) : index) * ROW_PITCH);
+      const sweep =
+        row?.arrive === undefined ? 1 : progress(time, row.arrive, SWEEP_MS);
+      if (sweep <= 0) return;
+      const sweepRight = Math.round(sweep * WIDTH);
+      withBounds(pixels, { ...rowsBounds, right: sweepRight }, () => {
+        drawDeparture(pixels, departure, {
+          top: rowTop,
+          headsignLeft,
+          moment,
+          frame,
+          roll: row?.roll,
+        });
       });
+      if (sweep < 1) {
+        // A scan line leads the sweep across the row
+        withBounds(pixels, rowsBounds, () => {
+          for (let y = rowTop - 1; y < rowTop + 10; y++) {
+            setPixel(pixels, sweepRight, y, HEADER);
+          }
+        });
+      }
     });
     top += section.rows * ROW_PITCH + STOP_GAP;
   }
 }
 
+/**
+ * A Departure's route, headsign and when it's due. Its due time flashes
+ * amber once it's only minutes away, like the signs on the platform
+ */
 function drawDeparture(
   pixels: Pixels,
   departure: Departure,
   {
     top,
     headsignLeft,
-    now,
+    moment: { now, time, scroll },
     frame,
-  }: { top: number; headsignLeft: number; now: Date; frame: number },
+    roll,
+  }: {
+    top: number;
+    headsignLeft: number;
+    moment: Moment;
+    frame: number;
+    roll?: RowMotion["roll"];
+  },
 ) {
   const due = formatDue(departure, now);
   const dueLeft = RIGHT - textWidth(due);
   const realtime = departure.predictedDeparture !== null;
-  const headsignRight = (realtime ? dueLeft - 7 : dueLeft) - 3;
+  const iconLeft = dueLeft - 7;
+  const headsignRight = (realtime ? iconLeft : dueLeft) - 3;
+  const dueSoon =
+    Math.floor((departsAt(departure).getTime() - now.getTime()) / 60_000) <=
+    DUE_SOON_MINUTES;
 
   drawText(pixels, routeName(departure), LEFT, top, routeColor(departure));
-  drawText(pixels, departure.headsign ?? "", headsignLeft, top, TEXT, {
-    right: headsignRight,
+  const headsign = departure.headsign ?? "";
+  if (scroll) {
+    drawScrollingText(pixels, headsign, headsignLeft, top, TEXT, {
+      right: headsignRight,
+      time,
+    });
+  } else {
+    drawText(pixels, headsign, headsignLeft, top, TEXT, {
+      right: headsignRight,
+    });
+  }
+  if (realtime) drawRealtimeIcon(pixels, iconLeft, top, frame);
+  if (!dueSoon || time % 1000 < 600) {
+    drawDue(pixels, due, top, dueSoon ? DUE_SOON : TEXT, {
+      roll: roll && {
+        from: roll.from,
+        progress: progress(time, roll.at, ROLL_MS),
+      },
+    });
+  }
+}
+
+/** Each glyph of `text` right-aligned to the board's edge, and where it is */
+function layoutRight(text: string) {
+  let x = RIGHT - textWidth(text);
+  const chars = [...text];
+  return toGlyphs(text).map((glyph, index) => {
+    const placed = { glyph, x, key: `${chars[index]}@${x}` };
+    x += glyph.width + 1;
+    return placed;
   });
-  if (realtime) drawRealtimeIcon(pixels, dueLeft - 7, top, frame);
-  drawText(pixels, due, dueLeft, top, TEXT);
+}
+
+/**
+ * The due time at the board's right edge. While it rolls over, glyphs that
+ * changed roll up and out as the new ones roll up from below; the rest stay
+ */
+function drawDue(
+  pixels: Pixels,
+  due: string,
+  top: number,
+  color: string,
+  { roll }: { roll?: { from: string; progress: number } },
+) {
+  if (!roll || roll.progress >= 1) {
+    drawText(pixels, due, RIGHT - textWidth(due), top, color);
+    return;
+  }
+  const before = layoutRight(roll.from);
+  const after = layoutRight(due);
+  const staying = new Set(
+    before
+      .filter(({ key }) => after.some((placed) => placed.key === key))
+      .map(({ key }) => key),
+  );
+  const shift = Math.round(roll.progress * ROW_PITCH);
+  withBounds(pixels, { top, bottom: top + 9 }, () => {
+    for (const { glyph, x, key } of after) {
+      const rise = staying.has(key) ? 0 : ROW_PITCH - shift;
+      drawGlyph(pixels, glyph, x, top + rise, color);
+    }
+    for (const { glyph, x, key } of before) {
+      if (!staying.has(key)) drawGlyph(pixels, glyph, x, top - shift, color);
+    }
+  });
+}
+
+/**
+ * Text that fits is drawn as it is. Text too long for `left` to `right`
+ * waits, scrolls left until it comes round again, and repeats
+ */
+function drawScrollingText(
+  pixels: Pixels,
+  text: string,
+  left: number,
+  top: number,
+  color: string,
+  { right, time }: { right: number; time: number },
+) {
+  const width = textWidth(text);
+  if (left + width <= right) {
+    drawText(pixels, text, left, top, color, { right });
+    return;
+  }
+  const cycle = width + SCROLL_GAP;
+  const scrollMs = (cycle / SCROLL_LEDS_PER_SECOND) * 1000;
+  const elapsed = (time % (SCROLL_PAUSE_MS + scrollMs)) - SCROLL_PAUSE_MS;
+  const offset = Math.floor(
+    (Math.max(0, elapsed) * SCROLL_LEDS_PER_SECOND) / 1000,
+  );
+  const clip = { left, right };
+  drawText(pixels, text, left - offset, top, color, { clip });
+  drawText(pixels, text, left - offset + cycle, top, color, { clip });
 }
 
 const PLACEHOLDER_WIDTHS = [46, 62, 38, 56, 50, 60];
@@ -304,25 +574,45 @@ function routeName(departure: Departure) {
   return departure.routeShortName ?? departure.routeId;
 }
 
-/** Draws whole glyphs from `left` until the next would pass `right` */
+/**
+ * Draws whole glyphs from `left` until the next would pass `right`, or with
+ * `clip`, every LED between its edges, glyphs cut where they cross them
+ */
 function drawText(
   pixels: Pixels,
   text: string,
   left: number,
   top: number,
   color: string,
-  { right = RIGHT }: { right?: number } = {},
+  {
+    right = RIGHT,
+    clip,
+  }: { right?: number; clip?: { left: number; right: number } } = {},
 ) {
   let x = left;
   for (const glyph of toGlyphs(text)) {
-    if (x + glyph.width > right) return;
-    glyph.rows.forEach((row, dy) => {
-      row.forEach((lit, dx) => {
-        if (lit) setPixel(pixels, x + dx, top + dy, color);
-      });
-    });
+    if (clip ? x >= clip.right : x + glyph.width > right) return;
+    if (clip) {
+      withBounds(pixels, clip, () => drawGlyph(pixels, glyph, x, top, color));
+    } else {
+      drawGlyph(pixels, glyph, x, top, color);
+    }
     x += glyph.width + 1;
   }
+}
+
+function drawGlyph(
+  pixels: Pixels,
+  glyph: Glyph,
+  left: number,
+  top: number,
+  color: string,
+) {
+  glyph.rows.forEach((row, dy) => {
+    row.forEach((lit, dx) => {
+      if (lit) setPixel(pixels, left + dx, top + dy, color);
+    });
+  });
 }
 
 // A signal icon whose arcs light up in turn while a Departure is live
@@ -352,12 +642,25 @@ function drawRealtimeIcon(
 }
 
 function setPixel(pixels: Pixels, x: number, y: number, color: string) {
-  if (x < 0 || x >= WIDTH || y < 0 || y >= pixels.height) return;
+  const { left, top, right, bottom } = pixels.bounds;
+  if (x < left || x >= right || y < top || y >= bottom) return;
   pixels.colors[y * WIDTH + x] = color;
 }
 
+/**
+ * The route's colour as a lit LED shows it: scaled up until its brightest
+ * channel is full, so dark brand colours glow instead of fading into the board
+ */
 function routeColor(departure: Departure) {
-  return departure.routeColor ? `#${departure.routeColor}` : TEXT;
+  const hex = departure.routeColor ?? "";
+  const channels = [0, 2, 4].map((i) =>
+    Number.parseInt(hex.slice(i, i + 2), 16),
+  );
+  const brightest = Math.max(...channels);
+  // Not a colour, or too near black to light up
+  if (!(brightest >= 32)) return TEXT;
+  const [r, g, b] = channels.map((c) => Math.round((c * 255) / brightest));
+  return `rgb(${r},${g},${b})`;
 }
 
 function formatDue(departure: Departure, now: Date) {
@@ -385,6 +688,18 @@ function LedPanel({
   wipe?: (x: number, y: number) => string | null | undefined;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  // Reused between frames: the lit LEDs, before their glow is added
+  const litRef = useRef<HTMLCanvasElement>(null);
+  // Every unlit LED, which only changes with the screen
+  const backgroundRef = useRef<{
+    geometry: string;
+    canvas: HTMLCanvasElement;
+  }>(null);
+  // What's on screen, so a frame that changes no LED isn't drawn again
+  const drawnRef = useRef<{
+    geometry: string;
+    colors: (string | null)[];
+  }>(null);
   const { screen, safe } = space;
 
   useEffect(() => {
@@ -394,8 +709,6 @@ function LedPanel({
     const scale = window.devicePixelRatio || 1;
     const width = Math.round(screen.width * scale);
     const height = Math.round(screen.height * scale);
-    canvas.width = width;
-    canvas.height = height;
 
     // The board, centred in the safe area, in device pixels
     const pitch =
@@ -410,38 +723,92 @@ function LedPanel({
     const firstRow = -Math.ceil(boardTop / pitch);
     const lastRow = Math.ceil((height - boardTop) / pitch);
 
-    const lit = document.createElement("canvas");
-    lit.width = width;
-    lit.height = height;
-    const litContext = lit.getContext("2d");
+    const geometry = [width, height, pitch, boardLeft, boardTop].join();
+    const drawn = drawnRef.current;
+    if (
+      !wipe &&
+      drawn?.geometry === geometry &&
+      sameColors(drawn.colors, pixels.colors)
+    ) {
+      return;
+    }
+    drawnRef.current = wipe ? null : { geometry, colors: pixels.colors };
 
-    context.fillStyle = "#050505";
-    context.fillRect(0, 0, width, height);
-    for (let y = firstRow; y < lastRow; y++) {
-      for (let x = firstColumn; x < lastColumn; x++) {
-        const onBoard = x >= 0 && x < WIDTH && y >= 0 && y < pixels.height;
-        const override = wipe?.(x, y);
-        const color =
-          override !== undefined
-            ? override
-            : onBoard
-              ? pixels.colors[y * WIDTH + x]
-              : null;
-        const target = color ? litContext : context;
-        if (!target) continue;
-        target.fillStyle = color ?? UNLIT;
-        target.beginPath();
-        target.arc(
-          boardLeft + (x + 0.5) * pitch,
-          boardTop + (y + 0.5) * pitch,
-          pitch * (color ? 0.42 : 0.36),
-          0,
-          Math.PI * 2,
-        );
-        target.fill();
+    if (canvas.width !== width) canvas.width = width;
+    if (canvas.height !== height) canvas.height = height;
+    litRef.current ??= document.createElement("canvas");
+    const lit = litRef.current;
+    if (lit.width !== width) lit.width = width;
+    if (lit.height !== height) lit.height = height;
+    const litContext = lit.getContext("2d");
+    if (!litContext) return;
+    litContext.clearRect(0, 0, width, height);
+
+    const drawLed = (
+      target: CanvasRenderingContext2D,
+      x: number,
+      y: number,
+      color: string | null,
+    ) => {
+      target.fillStyle = color ?? UNLIT;
+      target.globalAlpha = ledBrightness(x, y);
+      target.beginPath();
+      target.arc(
+        boardLeft + (x + 0.5) * pitch,
+        boardTop + (y + 0.5) * pitch,
+        pitch * (color ? 0.42 : 0.36),
+        0,
+        Math.PI * 2,
+      );
+      target.fill();
+    };
+
+    context.globalAlpha = 1;
+    if (wipe) {
+      // The wipe covers LEDs past the board's edges too, so all are drawn
+      context.fillStyle = "#050505";
+      context.fillRect(0, 0, width, height);
+      for (let y = firstRow; y < lastRow; y++) {
+        for (let x = firstColumn; x < lastColumn; x++) {
+          const onBoard = x >= 0 && x < WIDTH && y >= 0 && y < pixels.height;
+          const override = wipe(x, y);
+          const color =
+            override !== undefined
+              ? override
+              : onBoard
+                ? pixels.colors[y * WIDTH + x]
+                : null;
+          drawLed(color ? litContext : context, x, y, color ?? null);
+        }
+      }
+    } else {
+      if (backgroundRef.current?.geometry !== geometry) {
+        const background = document.createElement("canvas");
+        background.width = width;
+        background.height = height;
+        const backgroundContext = background.getContext("2d");
+        if (!backgroundContext) return;
+        backgroundContext.fillStyle = "#050505";
+        backgroundContext.fillRect(0, 0, width, height);
+        for (let y = firstRow; y < lastRow; y++) {
+          for (let x = firstColumn; x < lastColumn; x++) {
+            drawLed(backgroundContext, x, y, null);
+          }
+        }
+        backgroundRef.current = { geometry, canvas: background };
+      }
+      context.drawImage(backgroundRef.current.canvas, 0, 0);
+      // Lit LEDs are larger, so each covers the unlit one under it
+      for (let y = 0; y < pixels.height; y++) {
+        for (let x = 0; x < WIDTH; x++) {
+          const color = pixels.colors[y * WIDTH + x];
+          if (color) drawLed(litContext, x, y, color);
+        }
       }
     }
 
+    // drawLed leaves each LED's own brightness set
+    context.globalAlpha = 1;
     // Glow first, then the sharp LEDs on top
     context.save();
     context.filter = `blur(${pitch * 0.8}px)`;
@@ -460,6 +827,20 @@ function LedPanel({
       className="absolute inset-0 block h-full w-full"
     />
   );
+}
+
+/**
+ * Each LED's own brightness, from 84% to full: real LEDs never quite match,
+ * and the same LED always looks the same, so it's a hash of where it is
+ */
+function ledBrightness(x: number, y: number) {
+  let hash = Math.imul(x, 374761393) + Math.imul(y, 668265263);
+  hash = Math.imul(hash ^ (hash >>> 13), 1274126177);
+  return 0.84 + (((hash ^ (hash >>> 16)) >>> 0) / 2 ** 32) * 0.16;
+}
+
+function sameColors(a: (string | null)[], b: (string | null)[]) {
+  return a.length === b.length && a.every((color, index) => color === b[index]);
 }
 
 /** The whole screen, and the safe area inside it, in CSS pixels */
