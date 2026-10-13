@@ -5,31 +5,33 @@ import { REFETCH_INTERVAL_MS, STOPS } from "./stops";
 import { trpc } from "./trpc";
 
 /**
- * Every Stop's catchable Departures as one list, soonest first, like the
- * Departure Board, and per Stop: a Departure goes once it leaves sooner than
- * its Stop's Walk Time
+ * Every Stop's upcoming Departures as one list, soonest first, and per Stop.
+ * With `walkTime`, only the catchable ones, like the Departure Board: a
+ * Departure goes once it leaves sooner than its Stop's Walk Time
  */
-export function useCatchableDepartures({
+export function useStopDepartures({
   now,
   limit,
+  walkTime,
 }: {
   now: Date;
   limit: number;
+  walkTime: boolean;
 }) {
   const results = useQueries({
     queries: STOPS.map(({ stopId, directionId, walkTimeSeconds }) => ({
       ...trpc.departures.getByStop.queryOptions({
         stopId,
         directionId,
-        walkTimeSeconds,
+        walkTimeSeconds: walkTime ? walkTimeSeconds : undefined,
         limit,
       }),
       refetchInterval: REFETCH_INTERVAL_MS,
     })),
   });
 
-  // The server leaves out Departures within the Walk Time when it reads them;
-  // filtering again drops those that become uncatchable between refetches
+  // The server leaves out Departures within the Walk Time (or gone) when it
+  // reads them; filtering again drops those that go between refetches
   const stops = STOPS.map((stop, index) => {
     const result = results[index];
     return {
@@ -37,7 +39,7 @@ export function useCatchableDepartures({
       departures: (result?.data ?? []).filter(
         (departure) =>
           departsAt(departure).getTime() >=
-          now.getTime() + stop.walkTimeSeconds * 1000,
+          now.getTime() + (walkTime ? stop.walkTimeSeconds * 1000 : 0),
       ),
       error: result?.error ?? null,
       loading: result?.isPending ?? true,
@@ -55,7 +57,7 @@ export function useCatchableDepartures({
 
   return {
     departures,
-    /** Each Stop's own catchable Departures, up to `limit` */
+    /** Each Stop's own Departures, up to `limit` */
     stops,
     errors,
     loading: results.some((result) => result.isPending),

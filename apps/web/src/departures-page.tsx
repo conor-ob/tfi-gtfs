@@ -1,14 +1,15 @@
-import { useCatchableDepartures } from "./catchable-departures";
 import { DepartureRow, formatAgo, useNow } from "./departure-row";
+import { useStopDepartures } from "./stop-departures";
 
 const ROWS = 10;
 
 /** Every Stop's catchable Departures as one list, soonest first */
 export function DeparturesPage() {
   const now = useNow();
-  const { departures, errors, loading, updatedAt } = useCatchableDepartures({
+  const { departures, errors, loading, updatedAt } = useStopDepartures({
     now,
     limit: ROWS,
+    walkTime: true,
   });
 
   return (

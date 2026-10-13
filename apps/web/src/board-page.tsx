@@ -5,10 +5,9 @@ import {
   useRef,
   useState,
 } from "react";
-
-import { useCatchableDepartures } from "./catchable-departures";
 import { departsAt, useNow } from "./departure-row";
 import { textWidth, toGlyphs } from "./led-font";
+import { useStopDepartures } from "./stop-departures";
 import { STOPS } from "./stops";
 import type { Departure } from "./trpc";
 
@@ -39,7 +38,7 @@ const clockTime = new Intl.DateTimeFormat("en-IE", {
 
 /**
  * The Departure Board's LEDs, drawn pixel by pixel and filling the screen: a
- * section per Stop of its catchable Departures, as many rows as fit
+ * section per Stop of its upcoming Departures, as many rows as fit
  */
 export function BoardPage() {
   useFullScreenApp();
@@ -70,14 +69,27 @@ export function BoardPage() {
   );
 
   const now = useNow();
-  const { stops } = useCatchableDepartures({
+  // Every Departure from now, Walk Time or not: it's checked on the way
+  // Every Departure from now, Walk Time or not, to check on the way
+  const { stops } = useStopDepartures({
     now,
     limit: Math.max(...rowsPerStop),
+    walkTime: false,
   });
-  // Fast enough for the loading shimmer while any Stop is loading, else
-  // just the realtime icon's 400 ms steps
+  const [bootStart] = useState(() =>
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches
+      ? Number.NEGATIVE_INFINITY
+      : performance.now(),
+  );
+  const [booting, setBooting] = useState(true);
+  // Fast enough for the start-up wipe and the loading shimmer, else just the
+  // realtime icon's 400 ms steps
   const loading = stops.some((s) => s.loading && s.departures.length === 0);
-  const time = useClock(loading ? 50 : 400);
+  const time = useClock(booting || loading ? 50 : 400);
+  const bootElapsed = time - bootStart;
+  useEffect(() => {
+    if (booting && bootElapsed >= BOOT_MS) setBooting(false);
+  }, [booting, bootElapsed]);
 
   const sections = stops.map((section, index) => ({
     ...section,
@@ -109,9 +121,41 @@ export function BoardPage() {
       // measured: the safe area, clear of the notch and home indicator
       className="fixed inset-0 touch-none select-none overflow-hidden bg-[#050505] pt-[env(safe-area-inset-top)] pr-[env(safe-area-inset-right)] pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)]"
     >
-      {measured && <LedPanel pixels={pixels} space={measured} label={label} />}
+      {measured && (
+        <LedPanel
+          pixels={pixels}
+          space={measured}
+          label={label}
+          wipe={
+            booting
+              ? (x, y) => bootWipe(x, y, bootElapsed, pixels.height)
+              : undefined
+          }
+        />
+      )}
     </main>
   );
+}
+
+// The start-up test real LED signs run: each colour wipes diagonally across
+// every LED, close behind the last, and then the board itself
+const BOOT_COLORS = ["#ff2a1f", "#1fff4a", "#2a6bff", HEADER];
+const WIPE_MS = 550;
+const WIPE_STAGGER_MS = 170;
+const BOOT_MS = BOOT_COLORS.length * WIPE_STAGGER_MS + WIPE_MS;
+// LEDs past the board's edges, under the notch and so on, that the wipe covers
+const WIPE_MARGIN = 24;
+
+function bootWipe(x: number, y: number, elapsed: number, height: number) {
+  // 0 at the top-left corner of the screen, 1 at the bottom-right
+  const position =
+    (x + y / 2 + WIPE_MARGIN * 1.5) / (WIDTH + height / 2 + WIPE_MARGIN * 3);
+  let layer = -1;
+  for (let k = 0; k <= BOOT_COLORS.length; k++) {
+    if ((elapsed - k * WIPE_STAGGER_MS) / WIPE_MS >= position) layer = k;
+  }
+  if (layer === -1) return null;
+  return BOOT_COLORS[layer];
 }
 
 /** One colour per LED, row by row; `null` is unlit */
@@ -332,10 +376,13 @@ function LedPanel({
   pixels,
   space,
   label,
+  wipe,
 }: {
   pixels: Pixels;
   space: ScreenSpace;
   label: string;
+  /** A colour to show instead, `null` for unlit, `undefined` for the board */
+  wipe?: (x: number, y: number) => string | null | undefined;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const { screen, safe } = space;
@@ -373,7 +420,13 @@ function LedPanel({
     for (let y = firstRow; y < lastRow; y++) {
       for (let x = firstColumn; x < lastColumn; x++) {
         const onBoard = x >= 0 && x < WIDTH && y >= 0 && y < pixels.height;
-        const color = onBoard ? pixels.colors[y * WIDTH + x] : null;
+        const override = wipe?.(x, y);
+        const color =
+          override !== undefined
+            ? override
+            : onBoard
+              ? pixels.colors[y * WIDTH + x]
+              : null;
         const target = color ? litContext : context;
         if (!target) continue;
         target.fillStyle = color ?? UNLIT;
@@ -397,7 +450,7 @@ function LedPanel({
     context.drawImage(lit, 0, 0);
     context.restore();
     context.drawImage(lit, 0, 0);
-  }, [pixels, screen, safe]);
+  }, [pixels, screen, safe, wipe]);
 
   return (
     <canvas
@@ -479,7 +532,7 @@ function useFullScreenApp() {
       ["apple-mobile-web-app-capable", "yes"],
       ["mobile-web-app-capable", "yes"],
       ["apple-mobile-web-app-status-bar-style", "black-translucent"],
-      ["apple-mobile-web-app-title", "Board"],
+      ["apple-mobile-web-app-title", "Go"],
       ["theme-color", "#050505"],
     ].map(([name = "", content = ""]) => {
       const meta = document.createElement("meta");
