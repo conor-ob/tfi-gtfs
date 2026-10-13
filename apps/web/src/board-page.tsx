@@ -513,8 +513,8 @@ function useScreenSpace(ref: RefObject<HTMLElement | null>) {
 
 /**
  * While the board is open: no page scroll or rubber-banding, and the tags iOS
- * reads when it's added to the Home Screen, so it opens full screen with the
- * board under a see-through status bar. Only this page sets them
+ * reads when it's added to the Home Screen, so it opens full screen below a
+ * black status bar. Only this page sets them
  */
 function useFullScreenApp() {
   useEffect(() => {
@@ -531,7 +531,9 @@ function useFullScreenApp() {
     const added = [
       ["apple-mobile-web-app-capable", "yes"],
       ["mobile-web-app-capable", "yes"],
-      ["apple-mobile-web-app-status-bar-style", "black-translucent"],
+      // Not black-translucent: under a see-through status bar, iOS draws the
+      // page from the top of the screen but cuts it off a status bar short
+      ["apple-mobile-web-app-status-bar-style", "black"],
       ["apple-mobile-web-app-title", "Go"],
       ["theme-color", "#050505"],
     ].map(([name = "", content = ""]) => {
