@@ -7,6 +7,7 @@ type RouteColors = { routeColor: string; routeTextColor: string };
 const AGENCY_ROUTE_COLORS: Record<string, RouteColors> = {
   // Irish Rail
   IR: { routeColor: "2F8539", routeTextColor: "FFFFFF" },
+  // Go-Ahead Ireland
   "3": { routeColor: "0052B7", routeTextColor: "FFFFFF" },
   // Dublin Bus
   "1": { routeColor: "F3C936", routeTextColor: "000000" },
