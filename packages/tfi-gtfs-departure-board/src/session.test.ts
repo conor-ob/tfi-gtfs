@@ -21,6 +21,7 @@ const departure = (tripId: string, stopId: string): Departure => ({
   routeShortName: "DART",
   routeLongName: null,
   routeColor: null,
+  routeTextColor: null,
   routeType: 2,
   agencyId: "irish-rail",
   serviceDate: "2026-12-02",

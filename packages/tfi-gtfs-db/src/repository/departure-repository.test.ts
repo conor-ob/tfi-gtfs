@@ -174,6 +174,7 @@ describe("DepartureRepositoryImpl", () => {
         routeShortName: "46A",
         routeLongName: "Phoenix Park - Dún Laoghaire",
         routeColor: "FFD400",
+        routeTextColor: null,
         routeType: 3,
         agencyId: "1",
       },

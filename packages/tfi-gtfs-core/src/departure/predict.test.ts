@@ -14,6 +14,7 @@ const departure: Departure = {
   routeShortName: "46A",
   routeLongName: null,
   routeColor: null,
+  routeTextColor: null,
   routeType: 3,
   agencyId: "1",
   serviceDate: "2026-12-02",

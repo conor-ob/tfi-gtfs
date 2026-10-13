@@ -18,6 +18,7 @@ const departure = (
   routeShortName: "DART",
   routeLongName: "Bray - Howth",
   routeColor: "00A650",
+  routeTextColor: null,
   routeType: 2,
   agencyId: "irish-rail",
   serviceDate: "2026-12-02",

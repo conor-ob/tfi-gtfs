@@ -5,6 +5,7 @@ import type { Departure, DepartureQuery } from "./domain/types";
 import type { DepartureService } from "./interfaces/inbound/departure-service";
 import type { DepartureRepository } from "./interfaces/outbound/departure-repository";
 import { predictDeparture } from "./predict";
+import { withRouteColors } from "./route-colors";
 import { addDays, localDateOf, serviceDayStart } from "./service-day";
 
 // How far ahead to look, so a quiet Stop doesn't scan the whole Schedule
@@ -120,13 +121,14 @@ export class DepartureServiceImpl implements DepartureService {
           },
         );
         return stopTimes.map(
-          ({ departureTime, ...stopTime }): Departure => ({
-            ...stopTime,
-            stopName: stop.stopName,
-            serviceDate,
-            scheduledDeparture: new Date(start + departureTime * 1000),
-            predictedDeparture: null,
-          }),
+          ({ departureTime, ...stopTime }): Departure =>
+            withRouteColors({
+              ...stopTime,
+              stopName: stop.stopName,
+              serviceDate,
+              scheduledDeparture: new Date(start + departureTime * 1000),
+              predictedDeparture: null,
+            }),
         );
       }),
     );

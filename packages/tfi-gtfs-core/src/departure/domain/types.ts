@@ -13,6 +13,8 @@ export type ScheduledStopTime = {
   routeLongName: string | null;
   /** Hex without the `#`, e.g. `FFD400` */
   routeColor: string | null;
+  /** Hex without the `#` */
+  routeTextColor: string | null;
   routeType: number;
   agencyId: string;
 };
