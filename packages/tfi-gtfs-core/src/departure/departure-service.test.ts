@@ -302,6 +302,28 @@ describe("DepartureServiceImpl", () => {
     expect(departures.map((d) => d.tripId)).toEqual(["next"]);
   });
 
+  it("leaves out Departures leaving within the Walk Time", async () => {
+    const { repository } = fakeRepository({
+      "2026-12-02": [
+        stopTime("too-soon", hours(10) + 240),
+        stopTime("catchable", hours(10) + 300),
+      ],
+    });
+    const service = new DepartureServiceImpl(
+      repository,
+      fakeRealtime(),
+      () => new Date("2026-12-02T10:00:00Z"),
+    );
+
+    const departures = await service.getDepartures({
+      stopId: "s1",
+      walkTimeSeconds: 300,
+      limit: 10,
+    });
+
+    expect(departures.map((d) => d.tripId)).toEqual(["catchable"]);
+  });
+
   it("adds Predicted Departures and orders by them", async () => {
     const { repository } = fakeRepository({
       "2026-12-02": [

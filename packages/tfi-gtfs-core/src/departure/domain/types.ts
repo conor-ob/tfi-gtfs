@@ -36,9 +36,14 @@ export type DepartureQuery = {
   stopId: string;
   /**
    * Earliest Departure to include, by its Predicted Departure when it has one;
-   * defaults to now
+   * defaults to now plus `walkTimeSeconds`
    */
   from?: Date;
+  /**
+   * The Walk Time to the Stop: Departures leaving sooner than this many seconds
+   * from now can't be caught, so they're left out. Ignored when `from` is given
+   */
+  walkTimeSeconds?: number;
   /** Only Trips in this direction (GTFS `direction_id`, 0 or 1); defaults to both */
   directionId?: number;
   limit: number;

@@ -1,21 +1,29 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQueries } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 
 import { type Departure, trpc } from "./trpc";
 
 // Keep in step with WATCHED_STOP_IDS in .railway/railway.ts: the Schedule
-// only has Departures for watched Stops
+// only has Departures for watched Stops. A Departure leaving sooner than the
+// Walk Time can't be caught, so it isn't shown
 const STOPS = [
-  { stopId: "8250IR0014", name: "Dalkey", directionId: 0 as const },
-  { stopId: "8250DB003062", name: "Breffni Road" },
+  {
+    stopId: "8250IR0014",
+    name: "Dalkey",
+    directionId: 0 as const,
+    walkTimeSeconds: 600,
+  },
+  { stopId: "8250DB003062", name: "Breffni Road", walkTimeSeconds: 300 },
   {
     stopId: "8250IR0111",
     name: "Sandycove & Glasthule",
     directionId: 0 as const,
+    walkTimeSeconds: 720,
   },
 ];
 
 const REFETCH_INTERVAL_MS = 30_000;
+const ROWS = 10;
 
 const clockTime = new Intl.DateTimeFormat("en-IE", {
   hour: "2-digit",
@@ -25,70 +33,74 @@ const clockTime = new Intl.DateTimeFormat("en-IE", {
 
 export function App() {
   const now = useNow();
-
-  return (
-    <main className="mx-auto max-w-md space-y-8 px-4 py-6">
-      {STOPS.map((stop) => (
-        <StopDepartures key={stop.stopId} {...stop} now={now} />
-      ))}
-    </main>
-  );
-}
-
-function StopDepartures({
-  stopId,
-  name,
-  directionId,
-  now,
-}: {
-  stopId: string;
-  name: string;
-  directionId?: 0 | 1;
-  now: Date;
-}) {
-  const { data, error, dataUpdatedAt } = useQuery({
-    ...trpc.departures.getByStop.queryOptions({
-      stopId,
-      directionId,
-      limit: 6,
-    }),
-    refetchInterval: REFETCH_INTERVAL_MS,
+  const results = useQueries({
+    queries: STOPS.map(({ stopId, directionId, walkTimeSeconds }) => ({
+      ...trpc.departures.getByStop.queryOptions({
+        stopId,
+        directionId,
+        walkTimeSeconds,
+        limit: ROWS,
+      }),
+      refetchInterval: REFETCH_INTERVAL_MS,
+    })),
   });
 
+  // The server leaves out Departures within the Walk Time when it reads them;
+  // filtering again drops those that become uncatchable between refetches
+  const departures = STOPS.flatMap((stop, index) =>
+    (results[index]?.data ?? []).filter(
+      (departure) =>
+        departsAt(departure).getTime() >=
+        now.getTime() + stop.walkTimeSeconds * 1000,
+    ),
+  )
+    .sort((a, b) => departsAt(a).getTime() - departsAt(b).getTime())
+    .slice(0, ROWS);
+
+  const loading = results.some((result) => result.isPending);
+  // The oldest read, so "updated" never hides a Stop that has stopped updating
+  const updatedAt = Math.min(...results.map((result) => result.dataUpdatedAt));
+
   return (
-    <section>
+    <main className="mx-auto max-w-md px-4 py-6">
       <header className="mb-2 flex items-baseline justify-between">
-        <h2 className="font-semibold text-lg">{name}</h2>
-        {dataUpdatedAt > 0 && (
+        <h1 className="font-semibold text-lg">Departures</h1>
+        {updatedAt > 0 && (
           <span className="text-neutral-500 text-xs">
-            updated {formatAgo(now.getTime() - dataUpdatedAt)}
+            updated {formatAgo(now.getTime() - updatedAt)}
           </span>
         )}
       </header>
-      {error ? (
-        <p className="text-red-600 text-sm">{error.message}</p>
-      ) : !data ? (
-        <p className="text-neutral-500 text-sm">Loading…</p>
-      ) : data.length === 0 ? (
-        <p className="text-neutral-500 text-sm">No departures</p>
+      {STOPS.map((stop, index) => {
+        const error = results[index]?.error;
+        return error ? (
+          <p key={stop.stopId} className="text-red-600 text-sm">
+            {stop.name}: {error.message}
+          </p>
+        ) : null;
+      })}
+      {departures.length === 0 ? (
+        <p className="text-neutral-500 text-sm">
+          {loading ? "Loading…" : "No departures"}
+        </p>
       ) : (
         <ul className="divide-y divide-neutral-200 dark:divide-neutral-800">
-          {data.map((departure) => (
+          {departures.map((departure) => (
             <DepartureRow
-              key={`${departure.tripId}-${departure.serviceDate}`}
+              key={`${departure.tripId}-${departure.stopId}-${departure.serviceDate}`}
               departure={departure}
               now={now}
             />
           ))}
         </ul>
       )}
-    </section>
+    </main>
   );
 }
 
 function DepartureRow({ departure, now }: { departure: Departure; now: Date }) {
   const { scheduledDeparture, predictedDeparture } = departure;
-  const departs = predictedDeparture ?? scheduledDeparture;
+  const departs = departsAt(departure);
   const dueMinutes = Math.floor((departs.getTime() - now.getTime()) / 60_000);
   const delayMinutes =
     predictedDeparture &&
@@ -114,7 +126,9 @@ function DepartureRow({ departure, now }: { departure: Departure; now: Date }) {
       </span>
       <div className="min-w-0 flex-1">
         <p className="truncate">{departure.headsign}</p>
-        <p className="text-neutral-500 text-xs">
+        <p className="truncate text-neutral-500 text-xs">
+          {departure.stopName}
+          {" · "}
           {clockTime.format(departs)}
           {predictedDeparture ? (
             <>
@@ -138,6 +152,10 @@ function DepartureRow({ departure, now }: { departure: Departure; now: Date }) {
       </span>
     </li>
   );
+}
+
+function departsAt(departure: Departure) {
+  return departure.predictedDeparture ?? departure.scheduledDeparture;
 }
 
 function formatDue(dueMinutes: number, departs: Date) {

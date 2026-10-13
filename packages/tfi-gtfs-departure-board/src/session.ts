@@ -64,12 +64,10 @@ export class DepartureBoardSession {
     private readonly departureService: DepartureService,
     private readonly logger: DepartureBoardLogger,
     options: Partial<DepartureBoardOptions> = {},
-    private readonly now: () => Date = () => new Date(),
   ) {
     this.socket = socket;
     this.departureService = departureService;
     this.logger = logger;
-    this.now = now;
     this.options = { ...DEFAULT_OPTIONS, ...options };
     this.heartbeat = setInterval(
       () => this.send({ event: "heartbeat", data: null }),
@@ -136,7 +134,7 @@ export class DepartureBoardSession {
     try {
       const departures = await this.departureService.getDepartures({
         stopId: pair.stopId,
-        from: new Date(this.now().getTime() + pair.walkTimeSeconds * 1000),
+        walkTimeSeconds: pair.walkTimeSeconds,
         directionId: pair.directionId,
         limit: DEPARTURES_PER_PAIR,
       });

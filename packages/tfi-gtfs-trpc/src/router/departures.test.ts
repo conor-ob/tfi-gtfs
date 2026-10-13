@@ -51,6 +51,41 @@ describe("departuresRouter", () => {
     });
   });
 
+  it("passes the Walk Time to the service", async () => {
+    const getDepartures = vi.fn(async (): Promise<Departure[]> => []);
+
+    await callerWith(getDepartures).departures.getByStop({
+      stopId: "s1",
+      walkTimeSeconds: 300,
+    });
+
+    expect(getDepartures).toHaveBeenCalledWith({
+      stopId: "s1",
+      walkTimeSeconds: 300,
+      limit: 10,
+    });
+  });
+
+  it("rejects a negative Walk Time", async () => {
+    const caller = callerWith(async () => []);
+
+    await expect(
+      caller.departures.getByStop({ stopId: "s1", walkTimeSeconds: -300 }),
+    ).rejects.toBeInstanceOf(TRPCError);
+  });
+
+  it("rejects both from and a Walk Time", async () => {
+    const caller = callerWith(async () => []);
+
+    await expect(
+      caller.departures.getByStop({
+        stopId: "s1",
+        from: new Date("2026-12-02T10:00:00Z"),
+        walkTimeSeconds: 300,
+      }),
+    ).rejects.toBeInstanceOf(TRPCError);
+  });
+
   it("rejects a direction other than 0 or 1", async () => {
     const caller = callerWith(async () => []);
 
