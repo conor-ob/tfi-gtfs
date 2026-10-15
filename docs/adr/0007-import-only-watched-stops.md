@@ -1,5 +1,7 @@
 # Keep Postgres and import only Watched Stops
 
+> Superseded by [0011](0011-full-schedule-served-from-sqlite-file-in-bucket.md): every Stop is imported again, into a SQLite file in a Railway bucket, and Postgres is removed.
+
 Supersedes [0006](0006-schedule-served-from-sqlite-file.md).
 
 Most of what Postgres costs comes from the size of what each Schedule Import writes. The full Schedule is about 750 MB of tables and indexes. Writing it fills the page cache inside the container, and Railway counts that cache as used memory, which is why the 768 MB cap exists. The owner only needs Departures for about ten Stops, so the Schedule Import now takes an optional list of Watched Stops (`WATCHED_STOP_IDS` on `schedule-sync`). It keeps only:

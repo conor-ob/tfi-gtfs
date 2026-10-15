@@ -27,8 +27,8 @@ A place where passengers board or alight, identified by the Schedule. A Station 
 _Avoid_: Station (unless it is a parent Stop), halt
 
 **Watched Stop**:
-A Stop the owner has chosen to carry Departures for. When Watched Stops are configured, the Schedule Import keeps only them and the Trips that serve them.
-_Avoid_: Favourite, saved stop, stop filter (for the Stops themselves)
+A Stop the owner has chosen to show Departures for, in the apps and on the Departure Board. Every Stop is in the Schedule; watching one only decides where it is shown.
+_Avoid_: Favourite, saved stop, stop filter
 
 **Route**:
 A named, rider-facing service such as "46A" or "DART", belonging to one Agency.
