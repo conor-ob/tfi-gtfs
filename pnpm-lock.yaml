@@ -287,15 +287,18 @@ importers:
       '@tfi-gtfs/tfi-gtfs-core':
         specifier: workspace:*
         version: link:../../packages/tfi-gtfs-core
-      '@tfi-gtfs/tfi-gtfs-db':
-        specifier: workspace:*
-        version: link:../../packages/tfi-gtfs-db
       '@tfi-gtfs/tfi-gtfs-departure-board':
         specifier: workspace:*
         version: link:../../packages/tfi-gtfs-departure-board
       '@tfi-gtfs/tfi-gtfs-redis':
         specifier: workspace:*
         version: link:../../packages/tfi-gtfs-redis
+      '@tfi-gtfs/tfi-gtfs-schedule-store':
+        specifier: workspace:*
+        version: link:../../packages/tfi-gtfs-schedule-store
+      '@tfi-gtfs/tfi-gtfs-sqlite':
+        specifier: workspace:*
+        version: link:../../packages/tfi-gtfs-sqlite
       '@tfi-gtfs/tfi-gtfs-trpc':
         specifier: workspace:*
         version: link:../../packages/tfi-gtfs-trpc
@@ -330,6 +333,9 @@ importers:
       '@types/ws':
         specifier: ^8.18.2
         version: 8.18.2
+      superjson:
+        specifier: 'catalog:'
+        version: 2.2.6
       tsdown:
         specifier: 'catalog:'
         version: 0.23.1(tsx@4.23.15)(typescript@6.0.3)

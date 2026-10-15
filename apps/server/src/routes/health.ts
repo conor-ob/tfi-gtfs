@@ -2,19 +2,17 @@ import type { FastifyInstance } from "fastify";
 
 import { env } from "~/env/schema";
 
+// Healthy only once a Schedule is open, so a deploy never serves without one
+// (see docs/adr/0011)
 export default function (fastify: FastifyInstance) {
   fastify.get("/health", (_req, res) => {
-    try {
-      const healthCheck = {
-        env: env.NODE_ENV,
-        message: "OK",
-        uptime: process.uptime(),
-        timestamp: Date.now(),
-      };
-
-      res.status(200).send(healthCheck);
-    } catch (e) {
-      res.status(503).send(e);
-    }
+    const { isOpen, feedVersion } = fastify.scheduleLoader;
+    res.status(isOpen ? 200 : 503).send({
+      env: env.NODE_ENV,
+      message: isOpen ? "OK" : "No Schedule is open",
+      feedVersion,
+      uptime: process.uptime(),
+      timestamp: Date.now(),
+    });
   });
 }

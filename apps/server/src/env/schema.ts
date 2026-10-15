@@ -1,4 +1,3 @@
-import { getDatabaseUrlSchema } from "@tfi-gtfs/tfi-gtfs-utils";
 import "dotenv/config";
 import { z } from "zod";
 
@@ -22,7 +21,9 @@ const envSchema = z.object({
         .filter(Boolean),
     )
     .pipe(z.array(z.url())),
-  DATABASE_URL: getDatabaseUrlSchema(),
+  // How often to check the Schedule store for a new Schedule file; its own
+  // variables are read by createScheduleStore (see docs/adr/0011)
+  SCHEDULE_POLL_INTERVAL_SECONDS: z.coerce.number().int().min(1).default(300),
   NTA_API_KEY: z.string().min(1),
   REALTIME_URL: z
     .url()

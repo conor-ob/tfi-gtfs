@@ -1,8 +1,7 @@
 import { defineConfig } from "tsdown";
 
 export default defineConfig({
-  // migrate runs as the Railway pre-deploy command
-  entry: ["src/index.ts", "src/migrate.ts"],
+  entry: ["src/index.ts"],
   platform: "node",
   format: "esm",
   deps: {

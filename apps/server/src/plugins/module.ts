@@ -2,28 +2,53 @@ import { NtaRealtimeFeedClient } from "@tfi-gtfs/gtfs-realtime";
 import {
   InMemoryTripUpdateStore,
   injectDependencies as injectCoreDependencies,
+  type ScheduleStore,
   type TripUpdateStore,
 } from "@tfi-gtfs/tfi-gtfs-core";
-import { injectDependencies as injectDatabaseDependencies } from "@tfi-gtfs/tfi-gtfs-db";
 import {
   createRedisClient,
   RedisTripUpdateStore,
 } from "@tfi-gtfs/tfi-gtfs-redis";
+import { createScheduleStore } from "@tfi-gtfs/tfi-gtfs-schedule-store";
+import {
+  SCHEDULE_SCHEMA_VERSION,
+  ScheduleDatabase,
+  SqliteDepartureRepository,
+  SqliteStopRepository,
+} from "@tfi-gtfs/tfi-gtfs-sqlite";
 import type { FastifyInstance } from "fastify";
 import { env } from "~/env/schema";
+import { ScheduleLoader } from "~/schedule/schedule-loader";
 
 declare module "fastify" {
   interface FastifyInstance {
     dependencies: ReturnType<typeof injectCoreDependencies>;
+    scheduleLoader: ScheduleLoader;
   }
 }
 
-export default function (fastify: FastifyInstance) {
-  const databaseDependencies = injectDatabaseDependencies();
+export type ModuleOptions = {
+  /** Defaults to the store `SCHEDULE_STORE` picks */
+  scheduleStore?: ScheduleStore;
+};
+
+export default function (
+  fastify: FastifyInstance,
+  { scheduleStore = createScheduleStore() }: ModuleOptions = {},
+) {
+  // The open Schedule file, swapped by the loader when a new one is published
+  const schedule = new ScheduleDatabase();
+  const scheduleLoader = new ScheduleLoader({
+    store: scheduleStore,
+    schedule,
+    schemaVersion: SCHEDULE_SCHEMA_VERSION,
+    pollIntervalMs: env.SCHEDULE_POLL_INTERVAL_SECONDS * 1000,
+    log: fastify.log,
+  });
   const { tripUpdateStore, close } = createTripUpdateStore(fastify);
   const coreDependencies = injectCoreDependencies(
-    databaseDependencies.departureRepository,
-    databaseDependencies.stopRepository,
+    new SqliteDepartureRepository(schedule),
+    new SqliteStopRepository(schedule),
     new NtaRealtimeFeedClient(env.REALTIME_URL, env.NTA_API_KEY),
     tripUpdateStore,
     {
@@ -34,7 +59,13 @@ export default function (fastify: FastifyInstance) {
   );
 
   fastify.decorate("dependencies", coreDependencies);
-  fastify.addHook("onClose", close);
+  fastify.decorate("scheduleLoader", scheduleLoader);
+  // /health stays 503 until the first file is open
+  fastify.addHook("onReady", async () => scheduleLoader.start());
+  fastify.addHook("onClose", async () => {
+    await scheduleLoader.close();
+    await close();
+  });
 }
 
 function createTripUpdateStore(fastify: FastifyInstance): {

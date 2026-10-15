@@ -22,6 +22,6 @@ The protocol is small. The board sends `schedule:subscribe` with `routeStopPairs
 
 ## Consequences
 
-- An unwatched Stop in a pair yields no trips and a logged warning. A malformed schedule string closes the socket with an error.
+- A Stop missing from the Schedule yields no trips and a logged warning. Since ADR 0011 the Schedule has every Stop, so any Stop can be named, not only Watched Stops. A malformed schedule string closes the socket with an error.
 - Each open board asks for Departures every 30 s, like an open web page, so the Realtime Feed is read about once a minute while it's on (ADR 0009).
 - Paging through more Departures than fit on the panel isn't supported. If wanted, the planned extension is server-side: push successive pages of the latest list, switched on by a query parameter on the board's `base_url` (e.g. `?pageSeconds=5`), since the firmware's list mode setting only accepts its two built-in values.
