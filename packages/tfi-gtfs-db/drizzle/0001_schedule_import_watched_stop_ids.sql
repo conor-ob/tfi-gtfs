@@ -1,1 +1,0 @@
-ALTER TABLE "schedule_import" ADD COLUMN "watched_stop_ids" text[];
