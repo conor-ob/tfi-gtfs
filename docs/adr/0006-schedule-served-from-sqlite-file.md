@@ -1,6 +1,6 @@
 # Serve the Schedule from a SQLite file built by the import job
 
-> Superseded by [0007](0007-import-only-watched-stops.md): Postgres stays, and the Schedule Import keeps only Watched Stops. Not implemented; the spikes and measurements below remain for reference.
+> Superseded by [0011](0011-full-schedule-served-from-sqlite-file-in-bucket.md), which reinstates this design for the full Schedule with plain `node:sqlite`. Briefly superseded by [0007](0007-import-only-watched-stops.md) before that. The spikes and measurements below remain for reference; 0011 has today's.
 
 Supersedes [0003](0003-schedule-import-schema-swap.md), and the "writes directly to Postgres" half of [0002](0002-schedule-import-job-writes-directly-to-postgres.md).
 
