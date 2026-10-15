@@ -96,15 +96,16 @@ jobs:
             exit 1
           fi
 
-      # Same entry point Railway runs as the server pre-deploy command
       - name: Apply migrations to empty database
         id: migrate
-        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
-        run: node apps/server/dist/migrate.mjs
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
+        working-directory: packages/tfi-gtfs-db
+        run: pnpm db:migrate
 
       - name: Re-apply migrations (no-op)
         if: ${{ !cancelled() && steps.migrate.outcome == 'success' }}
-        run: node apps/server/dist/migrate.mjs
+        working-directory: packages/tfi-gtfs-db
+        run: pnpm db:migrate
 
       # tfi-gtfs-db tests use their own database (see its vitest.config.ts)
       - name: Create test database

@@ -1,27 +1,63 @@
-import { expect, onTestFinished, suite, test } from "vitest";
+import {
+  afterEach,
+  beforeEach,
+  expect,
+  onTestFinished,
+  suite,
+  test,
+} from "vitest";
 
 import { createServer } from "~/server";
+import { tempScheduleStore } from "~/test/schedule";
+
+type HealthCheck = { env: string; message: string; feedVersion: string | null };
 
 suite("health/", () => {
-  test("should return response", { retry: 3 }, async () => {
-    // arrange
-    const fastify = createServer({ logger: false });
+  let fixture: Awaited<ReturnType<typeof tempScheduleStore>>;
+
+  beforeEach(async () => {
+    fixture = await tempScheduleStore();
+  });
+
+  afterEach(async () => {
+    await fixture.cleanup();
+  });
+
+  async function createApp() {
+    const fastify = createServer(
+      { logger: false },
+      { scheduleStore: fixture.store },
+    );
     onTestFinished(() => fastify.close());
+    await fastify.ready();
+    return fastify;
+  }
 
-    // act
-    const response = await fastify.inject({
-      method: "GET",
-      url: "/health",
+  test("is unavailable until a Schedule is open", async () => {
+    const fastify = await createApp();
+    await fastify.scheduleLoader.refresh();
+
+    const response = await fastify.inject({ method: "GET", url: "/health" });
+
+    expect(response.statusCode).toEqual(503);
+    expect(response.json<HealthCheck>()).toMatchObject({
+      env: "test",
+      feedVersion: null,
     });
+  });
 
-    // assert
-    const healthCheckResponse = response.json<{
-      env: string;
-      message: string;
-    }>();
+  test("is healthy once a Schedule is open", async () => {
+    await fixture.publish("fv1");
+    const fastify = await createApp();
+    await fastify.scheduleLoader.refresh();
+
+    const response = await fastify.inject({ method: "GET", url: "/health" });
 
     expect(response.statusCode).toEqual(200);
-    expect(healthCheckResponse.env).toEqual("test");
-    expect(healthCheckResponse.message).toEqual("OK");
+    expect(response.json<HealthCheck>()).toMatchObject({
+      env: "test",
+      message: "OK",
+      feedVersion: "fv1",
+    });
   });
 });

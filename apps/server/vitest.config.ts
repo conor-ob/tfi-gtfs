@@ -11,9 +11,10 @@ export default defineConfig({
     // Tests don't read a developer's .env, so they run the same in CI
     env: {
       PORT: "4000",
-      DATABASE_URL:
-        "postgresql://postgres:postgres@localhost:5432/tfi-gtfs-test",
       NTA_API_KEY: "test",
+      // Nothing listens here, so a Realtime read fails at once instead of
+      // calling the NTA
+      REALTIME_URL: "http://127.0.0.1:9/",
     },
   },
 });

@@ -81,7 +81,7 @@ export default defineRailway(() => {
     source: tfiGtfs,
     env: {
       PORT: "8080",
-      DATABASE_URL: postgresDatabase.env.DATABASE_URL,
+      ...scheduleBucketEnv,
       TRIP_UPDATE_STORE: "redis",
       REDIS_URL: redisDatabase.env.REDIS_URL,
       // Set once in the Railway dashboard and sealed there, never in source
@@ -90,7 +90,6 @@ export default defineRailway(() => {
     build: dockerBuildConfig({
       dockerfilePath: "apps/server/Dockerfile",
     }),
-    preDeploy: "node /app/apps/server/dist/migrate.mjs",
     deploy: {
       ...deployConfig,
       healthcheckPath: "/health",
