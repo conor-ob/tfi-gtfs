@@ -41,6 +41,7 @@ coverage
 **/*.key
 
 # Misc
+**/.schedule
 *.tsbuildinfo
 .cache
 **/.cache

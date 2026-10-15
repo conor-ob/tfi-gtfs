@@ -1,11 +1,15 @@
-import { existsSync } from "node:fs";
+import { existsSync, statSync } from "node:fs";
+import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { gunzipSync } from "node:zlib";
 import {
+  fetchSchedule,
   injectScheduleImportDependencies,
   type ScheduleFeedClient,
   ScheduleImportError,
   type ScheduleTableName,
 } from "@tfi-gtfs/tfi-gtfs-core";
+import { FsScheduleStore } from "@tfi-gtfs/tfi-gtfs-schedule-store";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { openSchedule, ScheduleDatabase } from "../schedule-database";
 import { SCHEDULE_SCHEMA_VERSION } from "../schema";
@@ -140,19 +144,20 @@ afterEach(async () => {
 });
 
 describe("SqliteScheduleImportRepository", () => {
-  it("publishes a checked Schedule in the integer layout and records the import", async () => {
-    expect(await repository.findLatestImport()).toBeNull();
+  it("builds a checked Schedule in the integer layout and records the import", async () => {
     const staging = await repository.createStaging();
     await loadAll(staging, schedule());
 
     expect(await staging.check()).toEqual([]);
-    await staging.publish({
-      feedVersion: "v1",
-      etag: '"abc"',
-      watchedStopIds: null,
-    });
+    const file = await staging.build({ feedVersion: "v1", etag: '"abc"' });
 
     expect(existsSync(`${path}.staging`)).toBe(false);
+    expect(file.sizeBytes).toBe(statSync(path).size);
+    const chunks: Uint8Array[] = [];
+    for await (const chunk of file.read()) chunks.push(chunk);
+    expect(Buffer.concat(chunks).subarray(0, 16).toString()).toBe(
+      "SQLite format 3\0",
+    );
     expect(query(path, "SELECT agency_name FROM agency")).toEqual([
       { agency_name: 'Dublin Bus "BÁC"' },
     ]);
@@ -177,11 +182,9 @@ describe("SqliteScheduleImportRepository", () => {
     expect(
       query(path, "SELECT name FROM sqlite_schema WHERE name LIKE 'staging%'"),
     ).toEqual([]);
-    expect(await repository.findLatestImport()).toEqual({
-      feedVersion: "v1",
-      etag: '"abc"',
-      watchedStopIds: null,
-    });
+    expect(
+      query(path, "SELECT feed_version, etag FROM schedule_import"),
+    ).toEqual([{ feed_version: "v1", etag: '"abc"' }]);
   });
 
   it("reports rows that reference missing rows", async () => {
@@ -253,7 +256,24 @@ const feedOf = (rows: Rows): ScheduleFeedClient => ({
   },
 });
 
+/** Downloads the published Schedule as the server would, and opens it */
+async function openPublished(store: FsScheduleStore) {
+  const fetched = await fetchSchedule(store, SCHEDULE_SCHEMA_VERSION);
+  if (!fetched) throw new Error("Nothing published");
+  const chunks: Uint8Array[] = [];
+  for await (const chunk of fetched.body) chunks.push(chunk);
+  const downloaded = join(dir, "downloaded.sqlite");
+  await writeFile(downloaded, gunzipSync(Buffer.concat(chunks)));
+  return openSchedule(downloaded);
+}
+
 describe("Schedule Import into SQLite", () => {
+  let store: FsScheduleStore;
+
+  beforeEach(() => {
+    store = new FsScheduleStore(join(dir, "bucket"));
+  });
+
   it("keeps every Stop, with Departures and in Nearby Stops", async () => {
     const rows = schedule();
     // Not a Watched Stop
@@ -273,14 +293,16 @@ describe("Schedule Import into SQLite", () => {
     const { scheduleImportService } = injectScheduleImportDependencies(
       feedOf(rows),
       repository,
+      store,
     );
 
     expect(await scheduleImportService.importSchedule()).toMatchObject({
       status: "imported",
+      key: "schedule/v1/v1.sqlite.gz",
       rowCounts: { stops: 2, stop_times: 2 },
     });
 
-    const database = new ScheduleDatabase(openSchedule(path));
+    const database = new ScheduleDatabase(await openPublished(store));
     try {
       const departures = new SqliteDepartureRepository(database);
       const stops = new SqliteStopRepository(database);
@@ -311,13 +333,15 @@ describe("Schedule Import into SQLite", () => {
     expect(await scheduleImportService.importSchedule()).toEqual({
       status: "skipped",
       feedVersion: "v1",
+      key: "schedule/v1/v1.sqlite.gz",
     });
   });
 
-  it("fails the import on orphaned Stop Times and keeps the published file", async () => {
+  it("fails the import on orphaned Stop Times and leaves latest.json alone", async () => {
     const { scheduleImportService: first } = injectScheduleImportDependencies(
       feedOf(schedule()),
       repository,
+      store,
     );
     await first.importSchedule();
 
@@ -331,10 +355,15 @@ describe("Schedule Import into SQLite", () => {
     const { scheduleImportService: second } = injectScheduleImportDependencies(
       feedOf(rows),
       repository,
+      store,
     );
+    const published = await store.getPointer(SCHEDULE_SCHEMA_VERSION);
 
     await expect(second.importSchedule()).rejects.toThrow(ScheduleImportError);
     expect(existsSync(`${path}.staging`)).toBe(false);
-    expect((await repository.findLatestImport())?.feedVersion).toBe("v1");
+    expect(await store.getPointer(SCHEDULE_SCHEMA_VERSION)).toEqual(published);
+    expect(
+      (await store.list("schedule/")).map(({ key }) => key).sort(),
+    ).toEqual(["schedule/v1/latest.json", "schedule/v1/v1.sqlite.gz"]);
   });
 });

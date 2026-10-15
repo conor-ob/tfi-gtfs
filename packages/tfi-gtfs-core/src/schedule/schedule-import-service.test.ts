@@ -1,4 +1,9 @@
+import { gunzipSync } from "node:zlib";
 import { describe, expect, it } from "vitest";
+import {
+  type SchedulePointer,
+  schedulePointerKey,
+} from "./domain/schedule-store";
 import type {
   Agency,
   FeedInfo,
@@ -17,6 +22,7 @@ import type {
   ScheduleImportRepository,
   ScheduleStaging,
 } from "./interfaces/outbound/schedule-import-repository";
+import type { ScheduleStore } from "./interfaces/outbound/schedule-store";
 import { ScheduleImportServiceImpl } from "./schedule-import-service";
 
 type Rows = { [T in ScheduleTableName]: ScheduleTables[T][] };
@@ -155,10 +161,12 @@ function fakeClient(rows: Rows, etag = "etag-2"): ScheduleFeedClient {
   };
 }
 
+const FILE = "SQLite format 3\0 fake Schedule";
+
 class FakeStaging implements ScheduleStaging {
   loaded: Partial<Rows> = {};
   problems: string[] = [];
-  published: ScheduleImport | null = null;
+  built: ScheduleImport | null = null;
   discarded = false;
 
   async load<T extends ScheduleTableName>(
@@ -175,8 +183,14 @@ class FakeStaging implements ScheduleStaging {
     return this.problems;
   }
 
-  async publish(scheduleImport: ScheduleImport) {
-    this.published = scheduleImport;
+  async build(scheduleImport: ScheduleImport) {
+    this.built = scheduleImport;
+    return {
+      sizeBytes: FILE.length,
+      async *read() {
+        yield new TextEncoder().encode(FILE);
+      },
+    };
   }
 
   async discard() {
@@ -184,14 +198,67 @@ class FakeStaging implements ScheduleStaging {
   }
 }
 
-function fakeRepository(
-  staging: FakeStaging,
-  latest: ScheduleImport | null = null,
-): ScheduleImportRepository {
-  return {
-    findLatestImport: async () => latest,
-    createStaging: async () => staging,
-  };
+function fakeRepository(staging: FakeStaging): ScheduleImportRepository {
+  return { schemaVersion: 1, createStaging: async () => staging };
+}
+
+/** A bucket in memory. `failPuts` makes every write of a matching key throw */
+class MemoryScheduleStore implements ScheduleStore {
+  objects = new Map<string, Uint8Array>();
+  failPuts: RegExp | null = null;
+
+  async getPointer(schemaVersion: number) {
+    const object = this.objects.get(schedulePointerKey(schemaVersion));
+    if (!object) return null;
+    return JSON.parse(new TextDecoder().decode(object)) as SchedulePointer;
+  }
+
+  async getObject(key: string) {
+    const object = this.objects.get(key);
+    if (!object) throw new Error(`No such key: ${key}`);
+    return (async function* () {
+      yield object;
+    })();
+  }
+
+  async put(key: string, body: AsyncIterable<Uint8Array> | string) {
+    const chunks: Uint8Array[] =
+      typeof body === "string" ? [new TextEncoder().encode(body)] : [];
+    if (typeof body !== "string") {
+      for await (const chunk of body) chunks.push(chunk);
+    }
+    if (this.failPuts?.test(key)) throw new Error(`upload failed: ${key}`);
+    this.objects.set(key, Buffer.concat(chunks));
+    return { etag: key };
+  }
+
+  async list(prefix: string) {
+    return [...this.objects.keys()]
+      .filter((key) => key.startsWith(prefix))
+      .map((key) => ({ key, lastModified: new Date(0) }));
+  }
+
+  async delete(keys: readonly string[]) {
+    for (const key of keys) this.objects.delete(key);
+  }
+
+  /** Publishes a pointer as an earlier import would have */
+  withLatest(pointer: Pick<SchedulePointer, "feedVersion" | "etag">) {
+    const key = `schedule/v1/${pointer.feedVersion}.sqlite.gz`;
+    this.objects.set(key, new Uint8Array());
+    this.objects.set(
+      schedulePointerKey(1),
+      new TextEncoder().encode(
+        JSON.stringify({
+          key,
+          sha256: "0".repeat(64),
+          importedAt: "2026-10-14T03:00:00.000Z",
+          ...pointer,
+        }),
+      ),
+    );
+    return this;
+  }
 }
 
 describe("ScheduleImportServiceImpl", () => {
@@ -200,6 +267,7 @@ describe("ScheduleImportServiceImpl", () => {
     const service = new ScheduleImportServiceImpl(
       fakeClient(feedRows()),
       fakeRepository(staging),
+      new MemoryScheduleStore(),
     );
 
     const result = await service.importSchedule();
@@ -238,14 +306,11 @@ describe("ScheduleImportServiceImpl", () => {
       "s3",
     ]);
     expect(staging.loaded.feed_info).toEqual([feedInfo]);
-    expect(staging.published).toEqual({
-      feedVersion: "v2",
-      etag: "etag-2",
-      watchedStopIds: null,
-    });
+    expect(staging.built).toEqual({ feedVersion: "v2", etag: "etag-2" });
     expect(result).toEqual({
       status: "imported",
       feedVersion: "v2",
+      key: "schedule/v1/v2.sqlite.gz",
       rowCounts: {
         agency: 2,
         routes: 3,
@@ -256,127 +321,112 @@ describe("ScheduleImportServiceImpl", () => {
         stops: 4,
         feed_info: 1,
       },
-      unknownWatchedStopIds: [],
+      sizeBytes: FILE.length,
+      gzipBytes: expect.any(Number),
     });
   });
 
-  it("loads only the Watched Stops and the Trips that serve them", async () => {
-    const staging = new FakeStaging();
+  it("publishes the gzipped file and points latest.json at it", async () => {
+    const store = new MemoryScheduleStore();
     const service = new ScheduleImportServiceImpl(
       fakeClient(feedRows()),
-      fakeRepository(staging),
-      { watchedStopIds: ["s2", "s3", "missing", "s2"] },
+      fakeRepository(new FakeStaging()),
+      store,
     );
 
     const result = await service.importSchedule();
 
-    const ids = <T>(rows: T[] | undefined, key: keyof T) =>
-      rows?.map((row) => row[key]);
-    // s1 isn't watched, but t1 still serves s2; Bus Éireann's t2 serves s3
-    expect(ids(staging.loaded.stop_times, "tripId")).toEqual([
-      "t1",
-      "t2",
-      "t4",
-    ]);
-    expect(ids(staging.loaded.trips, "tripId")).toEqual(["t1", "t2", "t4"]);
-    expect(ids(staging.loaded.routes, "routeId")).toEqual([
-      "r46a",
-      "r39",
-      "r101",
-    ]);
-    expect(ids(staging.loaded.agency, "agencyId")).toEqual(["1", "2"]);
-    expect(ids(staging.loaded.stops, "stopId")).toEqual(["s2", "s3"]);
-    expect(staging.published?.watchedStopIds).toEqual(["missing", "s2", "s3"]);
-    expect(result).toMatchObject({ unknownWatchedStopIds: ["missing"] });
+    const object = store.objects.get("schedule/v1/v2.sqlite.gz");
+    expect(object && gunzipSync(object).toString()).toBe(FILE);
+    expect(result).toMatchObject({ gzipBytes: object?.byteLength });
+    expect(await store.getPointer(1)).toMatchObject({
+      key: "schedule/v1/v2.sqlite.gz",
+      feedVersion: "v2",
+      etag: "etag-2",
+    });
   });
 
   it("skips the import when the feed is unchanged", async () => {
     const staging = new FakeStaging();
     const service = new ScheduleImportServiceImpl(
       fakeClient(feedRows()),
-      fakeRepository(staging, {
+      fakeRepository(staging),
+      new MemoryScheduleStore().withLatest({
         feedVersion: "v2",
         etag: "etag-2",
-        watchedStopIds: null,
       }),
     );
 
     const result = await service.importSchedule();
 
-    expect(result).toEqual({ status: "skipped", feedVersion: "v2" });
+    expect(result).toEqual({
+      status: "skipped",
+      feedVersion: "v2",
+      key: "schedule/v1/v2.sqlite.gz",
+    });
     expect(staging.loaded).toEqual({});
   });
 
-  it("skips the import when the Watched Stops are the same in any order", async () => {
-    const staging = new FakeStaging();
-    const service = new ScheduleImportServiceImpl(
-      fakeClient(feedRows()),
-      fakeRepository(staging, {
-        feedVersion: "v2",
-        etag: "etag-2",
-        watchedStopIds: ["s1", "s2"],
-      }),
-      { watchedStopIds: ["s2", "s1"] },
-    );
-
-    const result = await service.importSchedule();
-
-    expect(result.status).toBe("skipped");
-  });
-
   it.each([
-    { previous: null, current: ["s1"] },
-    { previous: ["s1"], current: [] },
-    { previous: ["s1"], current: ["s1", "s2"] },
+    { feedVersion: "v2", etag: "etag-1" },
+    { feedVersion: "v1", etag: "etag-2" },
   ])(
-    "imports when the Watched Stops changed from $previous to $current",
-    async ({ previous, current }) => {
-      const staging = new FakeStaging();
+    "imports when the pointer has Feed Version $feedVersion and ETag $etag",
+    async (latest) => {
+      const store = new MemoryScheduleStore().withLatest(latest);
       const service = new ScheduleImportServiceImpl(
         fakeClient(feedRows()),
-        fakeRepository(staging, {
-          feedVersion: "v2",
-          etag: "etag-2",
-          watchedStopIds: previous,
-        }),
-        { watchedStopIds: current },
+        fakeRepository(new FakeStaging()),
+        store,
       );
 
       const result = await service.importSchedule();
 
       expect(result.status).toBe("imported");
+      expect((await store.getPointer(1))?.key).toBe("schedule/v1/v2.sqlite.gz");
     },
   );
 
-  it("imports when only the ETag changed", async () => {
-    const staging = new FakeStaging();
-    const service = new ScheduleImportServiceImpl(
-      fakeClient(feedRows(), "etag-3"),
-      fakeRepository(staging, {
-        feedVersion: "v2",
-        etag: "etag-2",
-        watchedStopIds: null,
-      }),
-    );
-
-    const result = await service.importSchedule();
-
-    expect(result.status).toBe("imported");
-  });
-
-  it("discards staging and does not publish when checks find problems", async () => {
+  it("leaves latest.json and staging untouched when checks find problems", async () => {
     const staging = new FakeStaging();
     staging.problems = ["3 stop_times reference unknown stops"];
+    const store = new MemoryScheduleStore().withLatest({
+      feedVersion: "v1",
+      etag: "etag-1",
+    });
+    const before = await store.getPointer(1);
     const service = new ScheduleImportServiceImpl(
       fakeClient(feedRows()),
       fakeRepository(staging),
+      store,
     );
 
     await expect(service.importSchedule()).rejects.toThrow(
       "3 stop_times reference unknown stops",
     );
-    expect(staging.published).toBeNull();
+    expect(staging.built).toBeNull();
     expect(staging.discarded).toBe(true);
+    expect(await store.getPointer(1)).toEqual(before);
+    expect([...store.objects.keys()]).not.toContain("schedule/v1/v2.sqlite.gz");
+  });
+
+  it("leaves latest.json untouched when the upload fails", async () => {
+    const staging = new FakeStaging();
+    const store = new MemoryScheduleStore().withLatest({
+      feedVersion: "v1",
+      etag: "etag-1",
+    });
+    store.failPuts = /\.sqlite\.gz$/;
+    const before = await store.getPointer(1);
+    const service = new ScheduleImportServiceImpl(
+      fakeClient(feedRows()),
+      fakeRepository(staging),
+      store,
+    );
+
+    await expect(service.importSchedule()).rejects.toThrow("upload failed");
+    expect(staging.discarded).toBe(true);
+    expect(await store.getPointer(1)).toEqual(before);
   });
 
   it("discards staging when loading fails", async () => {
@@ -394,14 +444,17 @@ describe("ScheduleImportServiceImpl", () => {
         };
       },
     };
+    const store = new MemoryScheduleStore();
     const service = new ScheduleImportServiceImpl(
       client,
       fakeRepository(staging),
+      store,
     );
 
     await expect(service.importSchedule()).rejects.toThrow("connection reset");
-    expect(staging.published).toBeNull();
+    expect(staging.built).toBeNull();
     expect(staging.discarded).toBe(true);
+    expect(await store.getPointer(1)).toBeNull();
   });
 
   it("rejects a feed without feed_info", async () => {
@@ -409,6 +462,7 @@ describe("ScheduleImportServiceImpl", () => {
     const service = new ScheduleImportServiceImpl(
       fakeClient(rows),
       fakeRepository(new FakeStaging()),
+      new MemoryScheduleStore(),
     );
 
     await expect(service.importSchedule()).rejects.toThrow("feed_info");

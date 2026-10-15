@@ -11,10 +11,8 @@ import {
 import type { ScheduleImportService } from "../schedule/interfaces/inbound/schedule-import-service";
 import type { ScheduleFeedClient } from "../schedule/interfaces/outbound/schedule-feed-client";
 import type { ScheduleImportRepository } from "../schedule/interfaces/outbound/schedule-import-repository";
-import {
-  type ScheduleImportOptions,
-  ScheduleImportServiceImpl,
-} from "../schedule/schedule-import-service";
+import type { ScheduleStore } from "../schedule/interfaces/outbound/schedule-store";
+import { ScheduleImportServiceImpl } from "../schedule/schedule-import-service";
 import type { StopService } from "../stop/interfaces/inbound/stop-service";
 import type { StopRepository } from "../stop/interfaces/outbound/stop-repository";
 import { StopServiceImpl } from "../stop/stop-service";
@@ -47,18 +45,18 @@ export function injectDependencies(
   };
 }
 
-// The Schedule Import runs in its own job (see
-// docs/adr/0002-schedule-import-job-writes-directly-to-postgres.md)
+// The Schedule Import runs in its own job (see docs/adr/0002 and
+// docs/adr/0011-full-schedule-served-from-sqlite-file-in-bucket.md)
 export function injectScheduleImportDependencies(
   scheduleFeedClient: ScheduleFeedClient,
   scheduleImportRepository: ScheduleImportRepository,
-  scheduleImportOptions?: Partial<ScheduleImportOptions>,
+  scheduleStore: ScheduleStore,
 ): { scheduleImportService: ScheduleImportService } {
   return {
     scheduleImportService: new ScheduleImportServiceImpl(
       scheduleFeedClient,
       scheduleImportRepository,
-      scheduleImportOptions,
+      scheduleStore,
     ),
   };
 }

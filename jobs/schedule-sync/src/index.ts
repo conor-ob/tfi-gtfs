@@ -1,16 +1,24 @@
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { GtfsStaticScheduleFeedClient } from "@tfi-gtfs/gtfs-static";
 import { injectScheduleImportDependencies } from "@tfi-gtfs/tfi-gtfs-core";
-import { injectDependencies as injectDatabaseDependencies } from "@tfi-gtfs/tfi-gtfs-db";
+import { createScheduleStore } from "@tfi-gtfs/tfi-gtfs-schedule-store";
+import { SqliteScheduleImportRepository } from "@tfi-gtfs/tfi-gtfs-sqlite";
 import { env } from "./env/schema";
 
-// Daily Schedule Import: stream the Schedule into a staging schema and swap it
-// in (see docs/adr/0002 to 0004). Composition root for the job.
-const database = injectDatabaseDependencies();
+// Daily Schedule Import: build the whole Schedule as a SQLite file in a temp
+// folder, then publish it gzipped to the Schedule store (see docs/adr/0011).
+// Composition root for the job.
+const scheduleStore = createScheduleStore();
+const dir = await mkdtemp(join(tmpdir(), "schedule-sync-"));
 const { scheduleImportService } = injectScheduleImportDependencies(
   new GtfsStaticScheduleFeedClient(env.SCHEDULE_URL),
-  database.scheduleImportRepository,
-  { watchedStopIds: env.WATCHED_STOP_IDS },
+  new SqliteScheduleImportRepository(join(dir, "schedule.sqlite")),
+  scheduleStore,
 );
+
+const megabytes = (bytes: number) => `${(bytes / 1_000_000).toFixed(1)} MB`;
 
 const started = performance.now();
 try {
@@ -18,22 +26,20 @@ try {
   const seconds = ((performance.now() - started) / 1000).toFixed(1);
   // biome-ignore lint/suspicious/noConsole: job output
   console.log(
-    `schedule-sync: ${result.status} ${result.feedVersion} in ${seconds}s`,
+    `schedule-sync: ${result.status} ${result.feedVersion} at ${result.key} in ${seconds}s`,
   );
   if (result.status === "imported") {
     // biome-ignore lint/suspicious/noConsole: job output
+    console.log(
+      `schedule-sync: ${megabytes(result.sizeBytes)}, ${megabytes(result.gzipBytes)} gzipped`,
+    );
+    // biome-ignore lint/suspicious/noConsole: job output
     console.table(result.rowCounts);
-    if (result.unknownWatchedStopIds.length > 0) {
-      // biome-ignore lint/suspicious/noConsole: job output
-      console.warn(
-        `schedule-sync: Watched Stops not in the Schedule: ${result.unknownWatchedStopIds.join(", ")}`,
-      );
-    }
   }
 } catch (error) {
   // biome-ignore lint/suspicious/noConsole: job output
   console.error("schedule-sync: failed", error);
   process.exitCode = 1;
 } finally {
-  await database.close();
+  await rm(dir, { recursive: true, force: true });
 }

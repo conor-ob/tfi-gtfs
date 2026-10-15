@@ -21,6 +21,7 @@
     "@tfi-gtfs/tfi-gtfs-core": "workspace:*"
   },
   "devDependencies": {
+    "@tfi-gtfs/tfi-gtfs-schedule-store": "workspace:*",
     "@total-typescript/tsconfig": "catalog:",
     "@types/node": "catalog:",
     "typescript": "catalog:",

@@ -103,22 +103,27 @@ export type ScheduleTables = {
 
 export type ScheduleTableName = keyof ScheduleTables;
 
-/**
- * A successful Schedule Import, used to skip unchanged feeds. The Watched
- * Stops it kept are sorted, or null when it kept every Stop.
- */
+/** What a Schedule Import records in the file it builds */
 export type ScheduleImport = {
   feedVersion: string;
+  /** The Schedule zip's ETag */
   etag: string | null;
-  watchedStopIds: string[] | null;
 };
 
 export type ScheduleImportResult =
-  | { status: "skipped"; feedVersion: string }
+  | {
+      status: "skipped";
+      feedVersion: string;
+      /** The published file, unchanged */
+      key: string;
+    }
   | {
       status: "imported";
       feedVersion: string;
+      /** The file just published */
+      key: string;
       rowCounts: Record<ScheduleTableName, number>;
-      /** Watched Stops that aren't in the Schedule, e.g. a typo or a retired Stop */
-      unknownWatchedStopIds: string[];
+      /** The SQLite file, before and after gzip */
+      sizeBytes: number;
+      gzipBytes: number;
     };

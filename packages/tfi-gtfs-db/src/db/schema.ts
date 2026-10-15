@@ -12,16 +12,13 @@ import {
   timestamp,
 } from "drizzle-orm/pg-core";
 
-// Static GTFS tables live in their own Postgres schema so a schedule import
-// can be swapped in atomically (see docs/adr/0003-schedule-import-schema-swap.md).
-// Tables in `public` must never hold foreign keys into this schema.
+// Static GTFS tables in their own Postgres schema, which the Schedule Import
+// used to swap in atomically (docs/adr/0003). The import now publishes a
+// SQLite file instead (docs/adr/0011), so these tables hold the last import
+// until the server reads the file and Postgres is removed. There are no
+// foreign keys, here or from `public`.
 //
-// There are no foreign keys inside it either: `CREATE TABLE … (LIKE … INCLUDING
-// ALL)` does not copy them, so they would vanish after the first swap. The
-// import checks referential integrity on the staging schema instead.
-//
-// Column names match the GTFS spec so `COPY` can load rows without renaming.
-// Stop Times are integer seconds since the start of the Service Day, because
+// Column names match the GTFS spec. Stop Times are integer seconds since the start of the Service Day, because
 // GTFS times can run past 24:00:00.
 export const gtfsSchema = pgSchema("gtfs");
 
@@ -147,10 +144,8 @@ export const feedInfoTable = gtfsSchema.table("feed_info", {
   feedContactEmail: text("feed_contact_email"),
 });
 
-// One row per successful Schedule Import, used for change detection: the next
-// import is skipped when the zip's ETag, Feed Version and Watched Stops match
-// the latest row. `watched_stop_ids` is sorted, or null when every Stop was
-// kept (see docs/adr/0007-import-only-watched-stops.md).
+// One row per Schedule Import into Postgres. No longer written: change
+// detection reads the bucket's `latest.json` (docs/adr/0011).
 export const scheduleImportTable = pgTable(
   "schedule_import",
   {

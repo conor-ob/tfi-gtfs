@@ -1,5 +1,6 @@
 import {
   type BuildConfig,
+  bucket,
   type DeployConfig,
   defineRailway,
   github,
@@ -9,6 +10,7 @@ import {
   project,
   type ReferencableServiceNode,
   redis,
+  ref,
   service,
   volume,
 } from "railway/iac";
@@ -55,6 +57,18 @@ export default defineRailway(() => {
   const redisDatabase = redis("redis", {
     region: "europe-west4-drams3a",
   });
+
+  // One SQLite file per Feed Version and the `latest.json` pointer, in
+  // Amsterdam, next to europe-west4 (see docs/adr/0011)
+  const scheduleBucket = bucket("schedule", { region: "ams" });
+  const scheduleBucketEnv = {
+    SCHEDULE_STORE: "s3",
+    SCHEDULE_BUCKET_ENDPOINT: ref(scheduleBucket, "ENDPOINT"),
+    SCHEDULE_BUCKET_REGION: ref(scheduleBucket, "REGION"),
+    SCHEDULE_BUCKET_NAME: ref(scheduleBucket, "BUCKET"),
+    SCHEDULE_BUCKET_ACCESS_KEY_ID: ref(scheduleBucket, "ACCESS_KEY_ID"),
+    SCHEDULE_BUCKET_SECRET_ACCESS_KEY: ref(scheduleBucket, "SECRET_ACCESS_KEY"),
+  };
 
   const euWest4 = { "europe-west4-drams3a": { numReplicas: 1 } };
   const deployConfig: Partial<DeployConfig> = {
@@ -120,20 +134,7 @@ export default defineRailway(() => {
   // summer; the Schedule is published around 22:30 UTC
   const scheduleSync = service("schedule-sync", {
     source: tfiGtfs,
-    env: {
-      DATABASE_URL: postgresDatabase.env.DATABASE_URL,
-      // Comma-separated; changing it re-imports at the next run (see
-      // docs/adr/0007). Declared here, not in the dashboard, so a change is
-      // planned and reviewed like any other
-      //   8220IR0134   Dublin Pearse
-      //   8220IR0135   Grand Canal Dock
-      //   8250DB003048 Sandycove Station
-      //   8250DB003062 Breffni Road
-      //   8250IR0014   Dalkey
-      //   8250IR0111   Sandycove and Glasthule
-      WATCHED_STOP_IDS:
-        "8220IR0134,8220IR0135,8250DB003048,8250DB003062,8250IR0014,8250IR0111",
-    },
+    env: scheduleBucketEnv,
     build: dockerBuildConfig({
       dockerfilePath: "jobs/schedule-sync/Dockerfile",
     }),
@@ -149,6 +150,7 @@ export default defineRailway(() => {
     postgresDatabase,
     postgresVolume,
     redisDatabase,
+    scheduleBucket,
   ]);
   const backend = group("backend", [server]);
   const frontend = group("frontend", [web, dartboard]);

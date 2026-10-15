@@ -1,23 +1,12 @@
-import { getDatabaseUrlSchema } from "@tfi-gtfs/tfi-gtfs-utils";
 import "dotenv/config";
 import { z } from "zod";
 
+// The Schedule store's variables are read by createScheduleStore
 const envSchema = z.object({
-  DATABASE_URL: getDatabaseUrlSchema(),
   SCHEDULE_URL: z
     .url()
     .default(
       "https://www.transportforireland.ie/transitData/Data/GTFS_Realtime.zip",
-    ),
-  // Comma-separated Watched Stop IDs (docs/adr/0007); unset keeps every Stop
-  WATCHED_STOP_IDS: z
-    .string()
-    .default("")
-    .transform((value) =>
-      value
-        .split(",")
-        .map((stopId) => stopId.trim())
-        .filter(Boolean),
     ),
 });
 

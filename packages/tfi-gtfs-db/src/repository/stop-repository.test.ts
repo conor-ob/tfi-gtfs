@@ -1,14 +1,8 @@
-import type {
-  ScheduleTableName,
-  ScheduleTables,
-  Stop,
-  StopRepository,
-} from "@tfi-gtfs/tfi-gtfs-core";
+import type { Stop, StopRepository } from "@tfi-gtfs/tfi-gtfs-core";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { runMigrations } from "../db/migrate";
 import { injectDependencies } from "../module/dependencies";
-
-type Rows = { [T in ScheduleTableName]: ScheduleTables[T][] };
+import { type Rows, seedSchedule } from "../test/seed-schedule";
 
 const stop = (
   stopId: string,
@@ -114,26 +108,13 @@ const schedule: Rows = {
   ],
 };
 
-async function* from<T>(rows: T[]) {
-  yield* rows;
-}
-
 const dependencies = injectDependencies();
 const repository: StopRepository = dependencies.stopRepository;
 
 describe("StopRepositoryImpl", () => {
   beforeAll(async () => {
     await runMigrations();
-    const staging = await dependencies.scheduleImportRepository.createStaging();
-    for (const table of Object.keys(schedule) as ScheduleTableName[]) {
-      await staging.load(table, from(schedule[table] as never[]));
-    }
-    expect(await staging.check()).toEqual([]);
-    await staging.publish({
-      feedVersion: "v1",
-      etag: null,
-      watchedStopIds: null,
-    });
+    await seedSchedule(dependencies.database, schedule);
   });
 
   afterAll(async () => {
