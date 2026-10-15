@@ -1,15 +1,12 @@
 import type {
   DepartureRepository,
-  ScheduleTableName,
-  ScheduleTables,
   StopTime,
   Trip,
 } from "@tfi-gtfs/tfi-gtfs-core";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { runMigrations } from "../db/migrate";
 import { injectDependencies } from "../module/dependencies";
-
-type Rows = { [T in ScheduleTableName]: ScheduleTables[T][] };
+import { type Rows, seedSchedule } from "../test/seed-schedule";
 
 const trip = (tripId: string, serviceId: string): Trip => ({
   tripId,
@@ -128,10 +125,6 @@ const schedule: Rows = {
   ],
 };
 
-async function* from<T>(rows: T[]) {
-  yield* rows;
-}
-
 const dependencies = injectDependencies();
 const repository: DepartureRepository = dependencies.departureRepository;
 
@@ -140,16 +133,7 @@ const allDay = { stopId: "s1", fromTime: 0, toTime: hours(48), limit: 10 };
 describe("DepartureRepositoryImpl", () => {
   beforeAll(async () => {
     await runMigrations();
-    const staging = await dependencies.scheduleImportRepository.createStaging();
-    for (const table of Object.keys(schedule) as ScheduleTableName[]) {
-      await staging.load(table, from(schedule[table] as never[]));
-    }
-    expect(await staging.check()).toEqual([]);
-    await staging.publish({
-      feedVersion: "v1",
-      etag: null,
-      watchedStopIds: null,
-    });
+    await seedSchedule(dependencies.database, schedule);
   });
 
   afterAll(async () => {

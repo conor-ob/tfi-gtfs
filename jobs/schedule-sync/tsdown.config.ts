@@ -11,4 +11,7 @@ export default defineConfig({
     alwaysBundle: [/^@tfi-gtfs\//],
     onlyBundle: false,
   },
+  // tfi-gtfs-sqlite reads the Schedule's schema from beside its module, which
+  // is the bundle once inlined
+  copy: ["../../packages/tfi-gtfs-sqlite/src/schema.sql"],
 });

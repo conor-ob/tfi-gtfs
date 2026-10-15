@@ -31,14 +31,12 @@ export type {
   ScheduleFeedClient,
 } from "./schedule/interfaces/outbound/schedule-feed-client";
 export type {
+  BuiltSchedule,
   ScheduleImportRepository,
   ScheduleStaging,
 } from "./schedule/interfaces/outbound/schedule-import-repository";
 export type { ScheduleStore } from "./schedule/interfaces/outbound/schedule-store";
-export {
-  ScheduleImportError,
-  type ScheduleImportOptions,
-} from "./schedule/schedule-import-service";
+export { ScheduleImportError } from "./schedule/schedule-import-service";
 export {
   type FetchedSchedule,
   fetchSchedule,

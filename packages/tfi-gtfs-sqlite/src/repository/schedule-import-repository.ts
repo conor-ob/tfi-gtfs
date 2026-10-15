@@ -1,15 +1,15 @@
-import { existsSync } from "node:fs";
-import { rename, rm } from "node:fs/promises";
+import { createReadStream } from "node:fs";
+import { rename, rm, stat } from "node:fs/promises";
 import { DatabaseSync, type SQLInputValue } from "node:sqlite";
 import type {
+  BuiltSchedule,
   ScheduleImport,
   ScheduleImportRepository,
   ScheduleStaging,
   ScheduleTableName,
   ScheduleTables,
 } from "@tfi-gtfs/tfi-gtfs-core";
-import { openSchedule } from "../schedule-database";
-import { readScheduleSchema } from "../schema";
+import { readScheduleSchema, SCHEDULE_SCHEMA_VERSION } from "../schema";
 
 const BATCH_ROWS = 10_000;
 
@@ -194,34 +194,18 @@ const _columnsCoverRowTypes: {
 const snake = (key: string) =>
   key.replace(/[A-Z]/g, (c) => `_${c.toLowerCase()}`);
 
-type ImportRow = { feedVersion: string; etag: string | null };
-
 /**
  * Builds the Schedule as a SQLite file at `path`. The file is written beside
- * it and renamed into place on publish, so `path` only ever holds a whole,
- * checked Schedule. Every Stop is kept, so the import's Watched Stops aren't
- * recorded.
+ * it and renamed into place once built, so `path` only ever holds a whole,
+ * checked Schedule.
  */
 export class SqliteScheduleImportRepository
   implements ScheduleImportRepository
 {
+  readonly schemaVersion = SCHEDULE_SCHEMA_VERSION;
+
   constructor(private readonly path: string) {
     this.path = path;
-  }
-
-  async findLatestImport(): Promise<ScheduleImport | null> {
-    if (!existsSync(this.path)) return null;
-    const database = openSchedule(this.path);
-    try {
-      const row = database
-        .prepare(
-          "SELECT feed_version AS feedVersion, etag FROM schedule_import",
-        )
-        .get() as ImportRow | undefined;
-      return row ? { ...row, watchedStopIds: null } : null;
-    } finally {
-      database.close();
-    }
   }
 
   async createStaging(): Promise<ScheduleStaging> {
@@ -344,7 +328,7 @@ class SqliteScheduleStaging implements ScheduleStaging {
     return problems;
   }
 
-  async publish({ feedVersion, etag }: ScheduleImport): Promise<void> {
+  async build({ feedVersion, etag }: ScheduleImport): Promise<BuiltSchedule> {
     const { database } = this;
     database.exec(readScheduleSchema());
     database.exec("BEGIN");
@@ -366,6 +350,9 @@ class SqliteScheduleStaging implements ScheduleStaging {
     // Still holding the lock, so no other import can touch the file first
     await rename(this.stagingPath, this.path);
     database.close();
+    const { path } = this;
+    const { size } = await stat(path);
+    return { sizeBytes: size, read: () => createReadStream(path) };
   }
 
   async discard(): Promise<void> {

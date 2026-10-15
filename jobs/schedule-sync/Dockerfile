@@ -18,8 +18,6 @@ RUN turbo prune --scope=@tfi-gtfs/schedule-sync --docker
 # Build stage
 FROM base AS builder
 
-ARG DATABASE_URL
-
 WORKDIR /app
 
 # Copy only lockfiles and pruned workspace manifests first
@@ -50,9 +48,6 @@ WORKDIR /app
 COPY --from=builder --chown=nodejs:nodejs /app .
 WORKDIR /app/jobs/schedule-sync
 
-ARG DATABASE_URL
-
 ENV NODE_ENV=production
-ENV DATABASE_URL=${DATABASE_URL}
 
 CMD ["node", "dist/index.mjs"]

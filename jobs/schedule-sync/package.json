@@ -13,8 +13,8 @@
   "dependencies": {
     "@tfi-gtfs/gtfs-static": "workspace:*",
     "@tfi-gtfs/tfi-gtfs-core": "workspace:*",
-    "@tfi-gtfs/tfi-gtfs-db": "workspace:*",
-    "@tfi-gtfs/tfi-gtfs-utils": "workspace:*",
+    "@tfi-gtfs/tfi-gtfs-schedule-store": "workspace:*",
+    "@tfi-gtfs/tfi-gtfs-sqlite": "workspace:*",
     "dotenv": "catalog:",
     "zod": "catalog:"
   },

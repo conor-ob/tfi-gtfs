@@ -37,11 +37,7 @@ export async function buildSchedule(rows: Rows) {
   await loadAll(staging, rows);
   const problems = await staging.check();
   if (problems.length > 0) throw new Error(problems.join("\n"));
-  await staging.publish({
-    feedVersion: "v1",
-    etag: null,
-    watchedStopIds: null,
-  });
+  await staging.build({ feedVersion: "v1", etag: null });
   const schedule = new ScheduleDatabase(openSchedule(path));
   return {
     schedule,
