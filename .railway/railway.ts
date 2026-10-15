@@ -5,14 +5,12 @@ import {
   defineRailway,
   github,
   group,
-  postgres,
   preserve,
   project,
   type ReferencableServiceNode,
   redis,
   ref,
   service,
-  volume,
 } from "railway/iac";
 
 function privateNetworkingUrl(target: ReferencableServiceNode) {
@@ -38,18 +36,6 @@ export default defineRailway(() => {
   // Deploy a commit only once its GitHub checks (CI, Railway apply) pass
   const tfiGtfs = github("conor-ob/tfi-gtfs", {
     checkSuites: true,
-  });
-
-  // Railway provisions the database's volume and attaches it; declaring it
-  // here adopts it so resizes go through IaC
-  const postgresVolume = volume("postgres-volume", {
-    allowOnlineResize: true,
-    region: "europe-west4-drams3a",
-    sizeMB: 5_000,
-  });
-
-  const postgresDatabase = postgres("postgres", {
-    region: "europe-west4-drams3a",
   });
 
   // Holds only the latest Trip Updates, which are disposable (see
@@ -145,12 +131,7 @@ export default defineRailway(() => {
   });
 
   const jobs = group("jobs", [scheduleSync]);
-  const database = group("database", [
-    postgresDatabase,
-    postgresVolume,
-    redisDatabase,
-    scheduleBucket,
-  ]);
+  const database = group("database", [redisDatabase, scheduleBucket]);
   const backend = group("backend", [server]);
   const frontend = group("frontend", [web, dartboard]);
 

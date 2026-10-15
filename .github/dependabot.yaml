@@ -65,9 +65,6 @@ updates:
       prefix: build
       include: scope
     ignore:
-      # Postgres majors need a data upgrade, and must match Railway and CI
-      - dependency-name: "postgres"
-        update-types: ["version-update:semver-major"]
       # Redis majors must match Railway and CI
       - dependency-name: "redis"
         update-types: ["version-update:semver-major"]

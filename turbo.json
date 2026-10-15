@@ -5,16 +5,6 @@
     "clean": {
       "cache": false
     },
-    "db:generate": {
-      "outputs": ["drizzle/**"]
-    },
-    "db:migrate": {
-      "cache": false
-    },
-    "db:studio": {
-      "cache": false,
-      "persistent": true
-    },
     "build": {
       "dependsOn": ["^build"],
       "outputs": ["dist/**"]
@@ -34,6 +24,6 @@
       "persistent": true
     }
   },
-  "globalEnv": ["NODE_ENV", "PORT", "ORIGIN", "DATABASE_URL"],
+  "globalEnv": ["NODE_ENV", "PORT", "ORIGIN"],
   "agentGuidance": false
 }

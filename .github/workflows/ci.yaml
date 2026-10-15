@@ -22,21 +22,6 @@ jobs:
     name: ✅ Checks
     runs-on: ubuntu-latest
     services:
-      postgres:
-        image: postgres:18-alpine
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: tfi-gtfs
-        ports:
-          - 5432:5432
-        # Docker's default 64 MB /dev/shm is too small for parallel index builds
-        options: >-
-          --shm-size=512mb
-          --health-cmd pg_isready
-          --health-interval 2s
-          --health-timeout 5s
-          --health-retries 15
       redis:
         image: redis:8-alpine
         ports:
@@ -46,8 +31,6 @@ jobs:
           --health-interval 2s
           --health-timeout 5s
           --health-retries 15
-    env:
-      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/tfi-gtfs
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -80,39 +63,6 @@ jobs:
         if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
         run: pnpm build
 
-      - name: Check migration journal
-        if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
-        working-directory: packages/tfi-gtfs-db
-        run: pnpm drizzle-kit check
-
-      - name: Check schema has no ungenerated changes
-        if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
-        working-directory: packages/tfi-gtfs-db
-        run: |
-          pnpm db:generate
-          if [ -n "$(git status --porcelain drizzle)" ]; then
-            echo "::error::schema.ts has changes without a migration. Run 'pnpm db:generate' and commit the result."
-            git status --porcelain drizzle
-            exit 1
-          fi
-
-      - name: Apply migrations to empty database
-        id: migrate
-        if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
-        working-directory: packages/tfi-gtfs-db
-        run: pnpm db:migrate
-
-      - name: Re-apply migrations (no-op)
-        if: ${{ !cancelled() && steps.migrate.outcome == 'success' }}
-        working-directory: packages/tfi-gtfs-db
-        run: pnpm db:migrate
-
-      # tfi-gtfs-db tests use their own database (see its vitest.config.ts)
-      - name: Create test database
-        id: test-db
-        if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
-        run: psql "$DATABASE_URL" -c 'CREATE DATABASE "tfi-gtfs-test"'
-
       - name: Test
-        if: ${{ !cancelled() && steps.test-db.outcome == 'success' }}
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
         run: pnpm test
