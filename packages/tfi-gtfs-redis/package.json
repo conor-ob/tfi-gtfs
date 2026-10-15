@@ -19,7 +19,7 @@
   },
   "dependencies": {
     "@tfi-gtfs/tfi-gtfs-core": "workspace:*",
-    "redis": "6.2.1"
+    "redis": "6.3.0"
   },
   "devDependencies": {
     "@total-typescript/tsconfig": "catalog:",

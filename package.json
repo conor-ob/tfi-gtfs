@@ -25,7 +25,7 @@
     "start": "turbo start"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.5.14",
+    "@biomejs/biome": "2.5.15",
     "railway": "^3.13.1",
     "turbo": "^2.11.5",
     "typescript": "catalog:"
