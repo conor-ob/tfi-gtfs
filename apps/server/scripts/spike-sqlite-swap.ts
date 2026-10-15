@@ -2,8 +2,8 @@
 /**
  * Spike: the server side of docs/adr/0006-schedule-served-from-sqlite-file.md.
  *
- * 1. Publishes two Feed Versions of the integer-ID Schedule file (built by
- *    `pnpm --filter @tfi-gtfs/schedule-sync spike:sqlite`) to a local HTTP
+ * 1. Publishes two Feed Versions of an integer-ID Schedule file (built by
+ *    `SqliteScheduleImportRepository` in `tfi-gtfs-sqlite`) to a local HTTP
  *    server that stands in for the Railway Storage Bucket: gzipped objects
  *    plus a `latest.json` pointer.
  * 2. Startup: reads the pointer, streams the object through a SHA-256 check
@@ -15,7 +15,7 @@
  *    query, event-loop delay during the download, and which Feed Version
  *    answered before and after.
  *
- * Usage: pnpm --filter @tfi-gtfs/server spike:sqlite-swap [path-to-int.sqlite]
+ * Usage: pnpm --filter @tfi-gtfs/server spike:sqlite-swap <path-to-schedule.sqlite>
  */
 import { createHash } from "node:crypto";
 import { createReadStream, createWriteStream, existsSync } from "node:fs";
@@ -37,12 +37,11 @@ import { pipeline } from "node:stream/promises";
 import type { ReadableStream } from "node:stream/web";
 import { createGunzip, createGzip } from "node:zlib";
 
-const SOURCE_DB =
-  process.argv[2] ??
-  join(
-    import.meta.dirname,
-    "../../../jobs/schedule-sync/.cache/sqlite-spike/schedule-int.sqlite",
-  );
+const SOURCE_DB = process.argv[2];
+if (!SOURCE_DB) {
+  console.error("Usage: spike:sqlite-swap <path-to-schedule.sqlite>");
+  process.exit(1);
+}
 const OUT_DIR = join(import.meta.dirname, "../.cache/sqlite-swap-spike");
 const BUCKET_DIR = join(OUT_DIR, "bucket");
 const DISK_DIR = join(OUT_DIR, "disk");
@@ -270,9 +269,7 @@ function departuresAt(schedule: ScheduleFile, stopId: string) {
 // --- main -------------------------------------------------------------------
 
 if (!existsSync(SOURCE_DB)) {
-  console.error(
-    `${SOURCE_DB} not found; run pnpm --filter @tfi-gtfs/schedule-sync spike:sqlite first`,
-  );
+  console.error(`${SOURCE_DB} not found`);
   process.exit(1);
 }
 await rm(OUT_DIR, { recursive: true, force: true });

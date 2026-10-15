@@ -8,8 +8,7 @@
     "build": "tsdown",
     "dev": "tsx src/index.ts",
     "start": "node dist/index.mjs",
-    "typecheck": "tsc --noEmit true",
-    "spike:sqlite": "tsx scripts/spike-sqlite.ts"
+    "typecheck": "tsc --noEmit true"
   },
   "dependencies": {
     "@tfi-gtfs/gtfs-static": "workspace:*",
