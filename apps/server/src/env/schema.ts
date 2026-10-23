@@ -9,7 +9,7 @@ const envSchema = z.object({
   PORT: z.coerce.number().int(),
   // How often to check the Schedule store for a new Schedule file; its own
   // variables are read by createScheduleStore (see docs/adr/0011)
-  SCHEDULE_POLL_INTERVAL_SECONDS: z.coerce.number().int().min(1).default(300),
+  SCHEDULE_POLL_INTERVAL_SECONDS: z.coerce.number().int().min(1),
   NTA_API_KEY: z.string().min(1),
   REALTIME_URL: z
     .url()
@@ -21,7 +21,7 @@ const envSchema = z.object({
     .min(10)
     .default(60),
   // Where Trip Updates live (see docs/adr/0009)
-  TRIP_UPDATE_STORE: z.enum(["memory", "redis"]).default("memory"),
+  TRIP_UPDATE_STORE: z.enum(["memory", "redis"]),
   REDIS_URL: z.url().optional(),
 });
 
