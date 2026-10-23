@@ -25,23 +25,25 @@ const optional = z.preprocess(
   z.string().optional(),
 );
 
+/** The variables `scheduleStoreEnvSchema` reads, for an app's .env schema */
+export const scheduleStoreVariablesSchema = z.object({
+  SCHEDULE_STORE: z.enum(["fs", "s3"]).default("fs"),
+  SCHEDULE_DIR: optional.default(".schedule/"),
+  SCHEDULE_BUCKET_ENDPOINT: optional.pipe(z.url().optional()),
+  SCHEDULE_BUCKET_REGION: optional,
+  SCHEDULE_BUCKET_NAME: optional,
+  SCHEDULE_BUCKET_ACCESS_KEY_ID: optional,
+  SCHEDULE_BUCKET_SECRET_ACCESS_KEY: optional,
+});
+
 /**
  * Where the Schedule's SQLite files live (see
  * docs/adr/0011-full-schedule-served-from-sqlite-file-in-bucket.md):
  * `SCHEDULE_STORE=fs` (default) uses the folder `SCHEDULE_DIR`, and `s3`
  * needs every bucket variable
  */
-export const scheduleStoreEnvSchema = z
-  .object({
-    SCHEDULE_STORE: z.enum(["fs", "s3"]).default("fs"),
-    SCHEDULE_DIR: optional.default(".schedule/"),
-    SCHEDULE_BUCKET_ENDPOINT: optional.pipe(z.url().optional()),
-    SCHEDULE_BUCKET_REGION: optional,
-    SCHEDULE_BUCKET_NAME: optional,
-    SCHEDULE_BUCKET_ACCESS_KEY_ID: optional,
-    SCHEDULE_BUCKET_SECRET_ACCESS_KEY: optional,
-  })
-  .transform((env, ctx): ScheduleStoreConfig => {
+export const scheduleStoreEnvSchema = scheduleStoreVariablesSchema.transform(
+  (env, ctx): ScheduleStoreConfig => {
     if (env.SCHEDULE_STORE === "fs") {
       return { kind: "fs", dir: env.SCHEDULE_DIR };
     }
@@ -59,4 +61,5 @@ export const scheduleStoreEnvSchema = z
       }
     }
     return config as ScheduleStoreConfig;
-  });
+  },
+);

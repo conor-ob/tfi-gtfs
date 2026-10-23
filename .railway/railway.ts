@@ -7,14 +7,26 @@ import {
   group,
   preserve,
   project,
+  type RailwayProvidedVariable,
   type ReferencableServiceNode,
   redis,
   ref,
   service,
 } from "railway/iac";
 
-function privateNetworkingUrl(target: ReferencableServiceNode) {
-  return `http://\${{${target.name}.RAILWAY_PRIVATE_DOMAIN}}:\${{${target.name}.PORT}}`;
+function railwayPrivateNetworkingUrl(
+  target: ReferencableServiceNode<RailwayProvidedVariable>,
+): string {
+  return `http://${toReferenceSyntax(target, "RAILWAY_PRIVATE_DOMAIN")}:${toReferenceSyntax(target, "PORT")}`;
+}
+
+// The SDK only supports whole-value references, so use Railway's
+// `${{service.VAR}}` syntax to compose them into a string.
+function toReferenceSyntax<K extends string>(
+  target: ReferencableServiceNode<K>,
+  variable: NoInfer<K>,
+): string {
+  return `\${{${target.name}.${variable}}}`;
 }
 
 function dockerBuildConfig({
@@ -88,7 +100,7 @@ export default defineRailway(() => {
     source: tfiGtfs,
     env: {
       PORT: "8080",
-      SERVER_URL: privateNetworkingUrl(server),
+      SERVER_URL: railwayPrivateNetworkingUrl(server),
     },
     build: dockerBuildConfig({
       dockerfilePath: "apps/web/Dockerfile",
@@ -104,7 +116,7 @@ export default defineRailway(() => {
     source: tfiGtfs,
     env: {
       PORT: "8080",
-      SERVER_URL: privateNetworkingUrl(server),
+      SERVER_URL: railwayPrivateNetworkingUrl(server),
     },
     build: dockerBuildConfig({
       dockerfilePath: "apps/dartboard/Dockerfile",

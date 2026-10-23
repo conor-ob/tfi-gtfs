@@ -24,6 +24,24 @@
       "persistent": true
     }
   },
-  "globalEnv": ["NODE_ENV", "PORT", "ORIGIN"],
+  "globalEnv": [
+    "NODE_ENV",
+    "PORT",
+    "NTA_API_KEY",
+    "REALTIME_URL",
+    "REALTIME_REFRESH_INTERVAL_SECONDS",
+    "TRIP_UPDATE_STORE",
+    "REDIS_URL",
+    "SCHEDULE_URL",
+    "SCHEDULE_POLL_INTERVAL_SECONDS",
+    "SCHEDULE_STORE",
+    "SCHEDULE_DIR",
+    "SCHEDULE_BUCKET_ENDPOINT",
+    "SCHEDULE_BUCKET_REGION",
+    "SCHEDULE_BUCKET_NAME",
+    "SCHEDULE_BUCKET_ACCESS_KEY_ID",
+    "SCHEDULE_BUCKET_SECRET_ACCESS_KEY",
+    "API_PROXY_TARGET"
+  ],
   "agentGuidance": false
 }
