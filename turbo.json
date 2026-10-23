@@ -41,7 +41,7 @@
     "SCHEDULE_BUCKET_NAME",
     "SCHEDULE_BUCKET_ACCESS_KEY_ID",
     "SCHEDULE_BUCKET_SECRET_ACCESS_KEY",
-    "API_PROXY_TARGET"
+    "SERVER_URL"
   ],
   "agentGuidance": false
 }

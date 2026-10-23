@@ -35,7 +35,7 @@ pnpm dev
 
 `tfi-gtfs-redis` tests run against Redis database 1, so `pnpm db:up` before `pnpm test`. `pnpm --filter @tfi-gtfs/schedule-sync dev` fills `jobs/schedule-sync/.schedule/` from the live feed; a second run skips.
 
-Env vars live in a per-package `.env`; copy each `.env.example`. `NTA_API_KEY` goes in `apps/server/.env`, whose `SCHEDULE_DIR` points at `jobs/schedule-sync/.schedule/`, so `pnpm dev` serves what `schedule-sync` published there; `/health` is 503 until it has opened a file. `apps/web` (port 5173) and `apps/dartboard` (port 5174) proxy `/api` to the local server; set `API_PROXY_TARGET=https://<web domain>/api` in their `.env` to use production instead. `pnpm db:reset` restarts Redis empty. It uses the default port 6379, so stop any other local Redis first. The server keeps Trip Updates in memory unless `TRIP_UPDATE_STORE=redis` (with `REDIS_URL`) is set in `apps/server/.env`.
+Env vars live in a per-package `.env`; copy each `.env.example`. `NTA_API_KEY` goes in `apps/server/.env`, whose `SCHEDULE_DIR` points at `jobs/schedule-sync/.schedule/`, so `pnpm dev` serves what `schedule-sync` published there; `/health` is 503 until it has opened a file. `apps/web` (port 5173) and `apps/dartboard` (port 5174) proxy `/api` to the local server; set `SERVER_URL=https://<web domain>/api` in their `.env` to use production instead. `pnpm db:reset` restarts Redis empty. It uses the default port 6379, so stop any other local Redis first. The server keeps Trip Updates in memory unless `TRIP_UPDATE_STORE=redis` (with `REDIS_URL`) is set in `apps/server/.env`.
 
 ## Design notes
 

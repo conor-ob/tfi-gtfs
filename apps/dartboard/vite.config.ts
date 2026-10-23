@@ -15,7 +15,7 @@ export default defineConfig(({ mode }) => {
       proxy: {
         // Caddy does the same in production (see Caddyfile)
         "/api": {
-          target: env.API_PROXY_TARGET,
+          target: env.SERVER_URL,
           changeOrigin: true,
           rewrite: (path) => path.replace(/^\/api/, ""),
         },

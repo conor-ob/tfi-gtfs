@@ -4,7 +4,7 @@ import { z } from "zod";
 export const envSchema = z.object({
   // Where `pnpm dev` proxies /api; point it at the deployed web app's /api to
   // use prod
-  API_PROXY_TARGET: z.url().default("http://localhost:4000"),
+  SERVER_URL: z.url().default("http://localhost:4000"),
 });
 
 // a .env file must only contain keys declared in the schema
