@@ -11,9 +11,7 @@ const envSchema = z.object({
   // variables are read by createScheduleStore (see docs/adr/0011)
   SCHEDULE_POLL_INTERVAL_SECONDS: z.coerce.number().int().min(1),
   NTA_API_KEY: z.string().min(1),
-  REALTIME_URL: z
-    .url()
-    .default("https://api.nationaltransport.ie/gtfsr/v2/TripUpdates"),
+  REALTIME_URL: z.url(),
   // The NTA throttles the API key but doesn't publish a rate
   REALTIME_REFRESH_INTERVAL_SECONDS: z.coerce.number().int().min(60),
   // Where Trip Updates live (see docs/adr/0009)

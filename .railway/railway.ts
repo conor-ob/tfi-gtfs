@@ -81,6 +81,7 @@ export default defineRailway(() => {
       PORT: "8080",
       ...scheduleBucketEnv,
       SCHEDULE_POLL_INTERVAL_SECONDS: "300",
+      REALTIME_URL: "https://api.nationaltransport.ie/gtfsr/v2/TripUpdates",
       REALTIME_REFRESH_INTERVAL_SECONDS: "60",
       TRIP_UPDATE_STORE: "redis",
       REDIS_URL: redisDatabase.env.REDIS_URL,
@@ -133,7 +134,11 @@ export default defineRailway(() => {
   // summer; the Schedule is published around 22:30 UTC
   const scheduleSync = service("schedule-sync", {
     source: tfiGtfs,
-    env: scheduleBucketEnv,
+    env: {
+      ...scheduleBucketEnv,
+      SCHEDULE_URL:
+        "https://www.transportforireland.ie/transitData/Data/GTFS_Realtime.zip",
+    },
     build: dockerBuildConfig({
       dockerfilePath: "jobs/schedule-sync/Dockerfile",
     }),

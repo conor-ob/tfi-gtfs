@@ -6,11 +6,7 @@ const { parsed, error } = dotenv({ encoding: "utf8", quiet: true });
 
 // The Schedule store's variables are read by createScheduleStore
 const envSchema = z.object({
-  SCHEDULE_URL: z
-    .url()
-    .default(
-      "https://www.transportforireland.ie/transitData/Data/GTFS_Realtime.zip",
-    ),
+  SCHEDULE_URL: z.url(),
 });
 
 // a .env file must only contain keys declared in the schema, or read by
