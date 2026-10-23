@@ -13,6 +13,7 @@ export default defineConfig({
       PORT: "4000",
       NTA_API_KEY: "test",
       SCHEDULE_POLL_INTERVAL_SECONDS: "300",
+      REALTIME_REFRESH_INTERVAL_SECONDS: "60",
       TRIP_UPDATE_STORE: "memory",
       // Nothing listens here, so a Realtime read fails at once instead of
       // calling the NTA

@@ -81,6 +81,7 @@ export default defineRailway(() => {
       PORT: "8080",
       ...scheduleBucketEnv,
       SCHEDULE_POLL_INTERVAL_SECONDS: "300",
+      REALTIME_REFRESH_INTERVAL_SECONDS: "60",
       TRIP_UPDATE_STORE: "redis",
       REDIS_URL: redisDatabase.env.REDIS_URL,
       // Set once in the Railway dashboard and sealed there, never in source

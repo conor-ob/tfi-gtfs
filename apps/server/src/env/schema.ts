@@ -15,11 +15,7 @@ const envSchema = z.object({
     .url()
     .default("https://api.nationaltransport.ie/gtfsr/v2/TripUpdates"),
   // The NTA throttles the API key but doesn't publish a rate
-  REALTIME_REFRESH_INTERVAL_SECONDS: z.coerce
-    .number()
-    .int()
-    .min(10)
-    .default(60),
+  REALTIME_REFRESH_INTERVAL_SECONDS: z.coerce.number().int().min(60),
   // Where Trip Updates live (see docs/adr/0009)
   TRIP_UPDATE_STORE: z.enum(["memory", "redis"]),
   REDIS_URL: z.url().optional(),
