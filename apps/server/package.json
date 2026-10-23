@@ -12,7 +12,6 @@
     "start": "node dist/index.mjs"
   },
   "dependencies": {
-    "@fastify/cors": "^11.3.0",
     "@fastify/rate-limit": "^11.2.0",
     "@fastify/websocket": "^11.3.4",
     "@mgcrea/fastify-request-logger": "^1.9.1",

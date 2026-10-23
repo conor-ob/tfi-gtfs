@@ -31,6 +31,9 @@ RUN pnpm install --frozen-lockfile
 # Copy full source for the isolated workspace
 COPY --from=pruner /app/out/full/ .
 
+# Railway passes service variables as build args, vite.config.ts validates them
+ARG SERVER_URL
+
 # Turbo build
 RUN turbo build --filter=@tfi-gtfs/dartboard
 

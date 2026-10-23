@@ -18,7 +18,6 @@ RUN turbo prune --scope=@tfi-gtfs/server --docker
 # Build stage
 FROM base AS builder
 ARG PORT
-ARG ORIGIN
 
 WORKDIR /app
 
@@ -52,11 +51,9 @@ COPY --from=builder --chown=nodejs:nodejs /app .
 WORKDIR /app/apps/server
 
 ARG PORT
-ARG ORIGIN
 
 ENV NODE_ENV=production
 ENV PORT=${PORT}
-ENV ORIGIN=${ORIGIN}
 
 EXPOSE ${PORT}
 

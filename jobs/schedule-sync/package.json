@@ -8,21 +8,24 @@
     "build": "tsdown",
     "dev": "tsx src/index.ts",
     "start": "node dist/index.mjs",
-    "typecheck": "tsc --noEmit true"
+    "typecheck": "tsc --noEmit true",
+    "test": "vitest"
   },
   "dependencies": {
     "@tfi-gtfs/gtfs-static": "workspace:*",
     "@tfi-gtfs/tfi-gtfs-core": "workspace:*",
     "@tfi-gtfs/tfi-gtfs-schedule-store": "workspace:*",
     "@tfi-gtfs/tfi-gtfs-sqlite": "workspace:*",
-    "dotenv": "catalog:",
+    "@tfi-gtfs/tfi-gtfs-utils": "workspace:*",
     "zod": "catalog:"
   },
   "devDependencies": {
     "@total-typescript/tsconfig": "catalog:",
     "@types/node": "catalog:",
+    "dotenv": "catalog:",
     "tsdown": "catalog:",
     "tsx": "catalog:",
-    "typescript": "catalog:"
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   }
 }

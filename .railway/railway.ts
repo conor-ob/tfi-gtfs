@@ -7,14 +7,26 @@ import {
   group,
   preserve,
   project,
+  type RailwayProvidedVariable,
   type ReferencableServiceNode,
   redis,
   ref,
   service,
 } from "railway/iac";
 
-function privateNetworkingUrl(target: ReferencableServiceNode) {
-  return `http://\${{${target.name}.RAILWAY_PRIVATE_DOMAIN}}:\${{${target.name}.PORT}}`;
+function railwayPrivateNetworkingUrl(
+  target: ReferencableServiceNode<RailwayProvidedVariable>,
+): string {
+  return `http://${toReferenceSyntax(target, "RAILWAY_PRIVATE_DOMAIN")}:${toReferenceSyntax(target, "PORT")}`;
+}
+
+// The SDK only supports whole-value references, so use Railway's
+// `${{service.VAR}}` syntax to compose them into a string.
+function toReferenceSyntax<K extends string>(
+  target: ReferencableServiceNode<K>,
+  variable: NoInfer<K>,
+): string {
+  return `\${{${target.name}.${variable}}}`;
 }
 
 function dockerBuildConfig({
@@ -68,6 +80,9 @@ export default defineRailway(() => {
     env: {
       PORT: "8080",
       ...scheduleBucketEnv,
+      SCHEDULE_POLL_INTERVAL_SECONDS: "300",
+      REALTIME_URL: "https://api.nationaltransport.ie/gtfsr/v2/TripUpdates",
+      REALTIME_REFRESH_INTERVAL_SECONDS: "60",
       TRIP_UPDATE_STORE: "redis",
       REDIS_URL: redisDatabase.env.REDIS_URL,
       // Set once in the Railway dashboard and sealed there, never in source
@@ -88,7 +103,7 @@ export default defineRailway(() => {
     source: tfiGtfs,
     env: {
       PORT: "8080",
-      SERVER_URL: privateNetworkingUrl(server),
+      SERVER_URL: railwayPrivateNetworkingUrl(server),
     },
     build: dockerBuildConfig({
       dockerfilePath: "apps/web/Dockerfile",
@@ -104,7 +119,7 @@ export default defineRailway(() => {
     source: tfiGtfs,
     env: {
       PORT: "8080",
-      SERVER_URL: privateNetworkingUrl(server),
+      SERVER_URL: railwayPrivateNetworkingUrl(server),
     },
     build: dockerBuildConfig({
       dockerfilePath: "apps/dartboard/Dockerfile",
@@ -119,7 +134,11 @@ export default defineRailway(() => {
   // summer; the Schedule is published around 22:30 UTC
   const scheduleSync = service("schedule-sync", {
     source: tfiGtfs,
-    env: scheduleBucketEnv,
+    env: {
+      ...scheduleBucketEnv,
+      SCHEDULE_URL:
+        "https://www.transportforireland.ie/transitData/Data/GTFS_Realtime.zip",
+    },
     build: dockerBuildConfig({
       dockerfilePath: "jobs/schedule-sync/Dockerfile",
     }),

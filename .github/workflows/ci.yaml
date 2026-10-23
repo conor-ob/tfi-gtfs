@@ -21,6 +21,9 @@ jobs:
   ci:
     name: ✅ Checks
     runs-on: ubuntu-latest
+    # vite.config.ts in web and dartboard requires it to build
+    env:
+      SERVER_URL: http://localhost:4000
     services:
       redis:
         image: redis:8-alpine
