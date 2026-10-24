@@ -19,7 +19,7 @@ concurrency:
 
 jobs:
   checks:
-    name: 🔍 Checks
+    name: 🔍 Check
     runs-on: ubuntu-latest
     services:
       redis:
