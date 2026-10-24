@@ -18,12 +18,9 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  ci:
-    name: ✅ Checks
+  checks:
+    name: 🔍 Checks
     runs-on: ubuntu-latest
-    # vite.config.ts in web and dartboard requires it to build
-    env:
-      SERVER_URL: http://localhost:4000
     services:
       redis:
         image: redis:8-alpine
@@ -38,6 +35,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
+      - name: Create .env files
+        run: |
+          for f in $(git ls-files '*.env.example'); do
+            cp "$f" "${f%.example}"
+          done
+
       - name: Install pnpm
         uses: pnpm/action-setup@v6
 
@@ -51,21 +54,9 @@ jobs:
         id: setup
         run: pnpm install --frozen-lockfile
 
-      # Checks below run even if an earlier one fails, so one run reports every
-      # failure. They still skip if any setup step above failed
       - name: Check
-        if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
         run: pnpm biome ci .
 
-      - name: Typecheck
+      - name: Typecheck, Build, Test
         if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
-        run: pnpm typecheck
-
-      - name: Build
-        id: build
-        if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
-        run: pnpm build
-
-      - name: Test
-        if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
-        run: pnpm test
+        run: pnpm turbo run typecheck build test --continue
