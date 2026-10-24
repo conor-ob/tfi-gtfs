@@ -138,6 +138,7 @@ export default defineRailway(() => {
       ...scheduleBucketEnv,
       SCHEDULE_URL:
         "https://www.transportforireland.ie/transitData/Data/GTFS_Realtime.zip",
+      IAC_SMOKE_TEST: "1",
     },
     build: dockerBuildConfig({
       dockerfilePath: "jobs/schedule-sync/Dockerfile",
