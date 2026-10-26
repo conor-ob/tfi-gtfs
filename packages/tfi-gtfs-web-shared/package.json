@@ -16,13 +16,13 @@
     "typecheck": "tsc --noEmit true"
   },
   "dependencies": {
-    "@tanstack/react-query": "^5.104.0",
+    "@tanstack/react-query": "^5.104.4",
     "@trpc/client": "catalog:",
     "@trpc/tanstack-react-query": "catalog:",
     "superjson": "catalog:"
   },
   "peerDependencies": {
-    "react": "^19.3.0"
+    "react": "^19.3.1"
   },
   "devDependencies": {
     "@tfi-gtfs/tfi-gtfs-trpc": "workspace:*",
@@ -30,7 +30,7 @@
     "@trpc/server": "catalog:",
     "@types/node": "catalog:",
     "@types/react": "^19.3.0",
-    "react": "^19.3.0",
+    "react": "^19.3.1",
     "typescript": "catalog:"
   }
 }
