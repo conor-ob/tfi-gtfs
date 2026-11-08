@@ -1,5 +1,5 @@
 {
-  "name": "@tfi-gtfs/gtfs-realtime",
+  "name": "@transit-tracker/gtfs-realtime",
   "version": "0.0.0",
   "type": "module",
   "private": true,
@@ -18,8 +18,8 @@
     "test": "vitest"
   },
   "devDependencies": {
-    "@tfi-gtfs/gtfs-static": "workspace:*",
     "@total-typescript/tsconfig": "catalog:",
+    "@transit-tracker/gtfs-static": "workspace:*",
     "@types/node": "catalog:",
     "csv-parse": "^7.0.3",
     "tsx": "catalog:",
@@ -27,7 +27,7 @@
     "vitest": "catalog:"
   },
   "dependencies": {
-    "@tfi-gtfs/tfi-gtfs-core": "workspace:*",
+    "@transit-tracker/transit-tracker-core": "workspace:*",
     "gtfs-realtime-bindings": "^2.2.0",
     "zod": "catalog:"
   }

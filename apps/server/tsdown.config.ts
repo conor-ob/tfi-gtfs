@@ -8,7 +8,7 @@ export default defineConfig({
     // Workspace packages export TypeScript source, which the Docker image
     // deletes, so bundle them along with their dependencies. The server's own
     // npm dependencies stay external
-    alwaysBundle: [/^@tfi-gtfs\//],
+    alwaysBundle: [/^@transit-tracker\//],
     onlyBundle: false,
   },
 });

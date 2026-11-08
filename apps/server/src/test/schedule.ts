@@ -8,12 +8,12 @@ import {
   type ScheduleTableName,
   type ScheduleTables,
   type Stop,
-} from "@tfi-gtfs/tfi-gtfs-core";
-import { FsScheduleStore } from "@tfi-gtfs/tfi-gtfs-schedule-store";
+} from "@transit-tracker/transit-tracker-core";
+import { FsScheduleStore } from "@transit-tracker/transit-tracker-schedule-store";
 import {
   SCHEDULE_SCHEMA_VERSION,
   SqliteScheduleImportRepository,
-} from "@tfi-gtfs/tfi-gtfs-sqlite";
+} from "@transit-tracker/transit-tracker-sqlite";
 
 export type Rows = { [T in ScheduleTableName]: ScheduleTables[T][] };
 
@@ -143,7 +143,7 @@ async function* from<T>(rows: Iterable<T>) {
 
 /** A Schedule store in a temp folder, and somewhere to build files */
 export async function tempScheduleStore() {
-  const root = await mkdtemp(join(tmpdir(), "tfi-gtfs-server-"));
+  const root = await mkdtemp(join(tmpdir(), "transit-tracker-server-"));
   const store = new FsScheduleStore(join(root, "bucket"));
   let builds = 0;
 

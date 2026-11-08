@@ -1,5 +1,5 @@
 {
-  "name": "@tfi-gtfs/gtfs-static",
+  "name": "@transit-tracker/gtfs-static",
   "version": "0.0.0",
   "type": "module",
   "private": true,
@@ -18,7 +18,7 @@
     "test": "vitest"
   },
   "dependencies": {
-    "@tfi-gtfs/tfi-gtfs-core": "workspace:*",
+    "@transit-tracker/transit-tracker-core": "workspace:*",
     "csv-parse": "^7.0.3"
   },
   "devDependencies": {

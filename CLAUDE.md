@@ -6,7 +6,7 @@ Read `README.md` first: package layout, design notes too small for an ADR, and t
 
 ### Issue tracker
 
-Issues live in GitHub Issues on `conor-ob/tfi-gtfs`, managed with the `gh` CLI. See `docs/agents/issue-tracker.md`.
+Issues live in GitHub Issues on `conor-ob/transit-tracker`, managed with the `gh` CLI. See `docs/agents/issue-tracker.md`.
 
 ### Triage labels
 

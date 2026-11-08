@@ -9,8 +9,11 @@ import {
   fetchSchedule,
   type SchedulePointer,
   type ScheduleStore,
-} from "@tfi-gtfs/tfi-gtfs-core";
-import { openSchedule, type ScheduleDatabase } from "@tfi-gtfs/tfi-gtfs-sqlite";
+} from "@transit-tracker/transit-tracker-core";
+import {
+  openSchedule,
+  type ScheduleDatabase,
+} from "@transit-tracker/transit-tracker-sqlite";
 import type { FastifyBaseLogger } from "fastify";
 
 type OpenFile = { path: string; pointer: SchedulePointer };
@@ -134,7 +137,7 @@ export class ScheduleLoader {
     pointer: SchedulePointer,
     body: AsyncIterable<Uint8Array>,
   ): Promise<string> {
-    this.dir ??= await mkdtemp(join(tmpdir(), "tfi-gtfs-schedule-"));
+    this.dir ??= await mkdtemp(join(tmpdir(), "transit-tracker-schedule-"));
     const path = join(this.dir, `${pointer.feedVersion}.sqlite`);
     const partial = `${path}.partial`;
     try {

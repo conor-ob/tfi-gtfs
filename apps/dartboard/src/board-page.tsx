@@ -4,7 +4,7 @@ import {
   STOPS,
   useNow,
   useStopDepartures,
-} from "@tfi-gtfs/tfi-gtfs-web-shared";
+} from "@transit-tracker/transit-tracker-web-shared";
 import {
   type RefObject,
   useEffect,

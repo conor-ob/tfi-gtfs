@@ -1,21 +1,21 @@
-import { NtaRealtimeFeedClient } from "@tfi-gtfs/gtfs-realtime";
+import { NtaRealtimeFeedClient } from "@transit-tracker/gtfs-realtime";
 import {
   InMemoryTripUpdateStore,
   injectDependencies as injectCoreDependencies,
   type ScheduleStore,
   type TripUpdateStore,
-} from "@tfi-gtfs/tfi-gtfs-core";
+} from "@transit-tracker/transit-tracker-core";
 import {
   createRedisClient,
   RedisTripUpdateStore,
-} from "@tfi-gtfs/tfi-gtfs-redis";
-import { createScheduleStore } from "@tfi-gtfs/tfi-gtfs-schedule-store";
+} from "@transit-tracker/transit-tracker-redis";
+import { createScheduleStore } from "@transit-tracker/transit-tracker-schedule-store";
 import {
   SCHEDULE_SCHEMA_VERSION,
   ScheduleDatabase,
   SqliteDepartureRepository,
   SqliteStopRepository,
-} from "@tfi-gtfs/tfi-gtfs-sqlite";
+} from "@transit-tracker/transit-tracker-sqlite";
 import type { FastifyInstance } from "fastify";
 import { env } from "~/env/schema";
 import { ScheduleLoader } from "~/schedule/schedule-loader";

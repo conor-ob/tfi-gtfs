@@ -3,7 +3,7 @@
   "extends": "@total-typescript/tsconfig/bundler/dom/app",
   "compilerOptions": {
     "jsx": "react-jsx",
-    // node for the server packages typechecked through @tfi-gtfs/tfi-gtfs-trpc
+    // node for the server packages typechecked through @transit-tracker/transit-tracker-trpc
     "types": ["node", "vite/client"]
   },
   "exclude": ["dist"]

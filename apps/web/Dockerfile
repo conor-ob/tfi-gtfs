@@ -13,7 +13,7 @@ RUN npm install -g pnpm turbo \
 FROM base AS pruner
 WORKDIR /app
 COPY . .
-RUN turbo prune --scope=@tfi-gtfs/web --docker
+RUN turbo prune --scope=@transit-tracker/web --docker
 
 # Build stage
 FROM base AS builder
@@ -35,7 +35,7 @@ COPY --from=pruner /app/out/full/ .
 ARG SERVER_URL
 
 # Turbo build
-RUN turbo build --filter=@tfi-gtfs/web
+RUN turbo build --filter=@transit-tracker/web
 
 # Static files served by Caddy, which also proxies /api to the server
 FROM caddy:2-alpine AS runner

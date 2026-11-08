@@ -1,4 +1,4 @@
-import { scheduleStoreVariablesSchema } from "@tfi-gtfs/tfi-gtfs-utils";
+import { scheduleStoreVariablesSchema } from "@transit-tracker/transit-tracker-utils";
 import { config as dotenv } from "dotenv";
 import { z } from "zod";
 

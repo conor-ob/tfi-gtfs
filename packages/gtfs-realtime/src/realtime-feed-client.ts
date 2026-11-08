@@ -1,7 +1,7 @@
 import type {
   RealtimeFeedClient,
   TripUpdateFeed,
-} from "@tfi-gtfs/tfi-gtfs-core";
+} from "@transit-tracker/transit-tracker-core";
 import { decodeTripUpdateFeed } from "./trip-update-feed";
 
 const TIMEOUT_MS = 10_000;

@@ -1,4 +1,7 @@
-import { type Departure, departsAt } from "@tfi-gtfs/tfi-gtfs-web-shared";
+import {
+  type Departure,
+  departsAt,
+} from "@transit-tracker/transit-tracker-web-shared";
 
 const clockTime = new Intl.DateTimeFormat("en-IE", {
   hour: "2-digit",

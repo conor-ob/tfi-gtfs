@@ -1,7 +1,7 @@
 import type {
   ScheduleTableName,
   ScheduleTables,
-} from "@tfi-gtfs/tfi-gtfs-core";
+} from "@transit-tracker/transit-tracker-core";
 
 /** One CSV row keyed by its header */
 export type CsvRecord = Record<string, string | undefined>;

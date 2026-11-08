@@ -13,7 +13,7 @@ RUN npm install -g pnpm turbo \
 FROM base AS pruner
 WORKDIR /app
 COPY . .
-RUN turbo prune --scope=@tfi-gtfs/schedule-sync --docker
+RUN turbo prune --scope=@transit-tracker/schedule-sync --docker
 
 # Build stage
 FROM base AS builder
@@ -32,7 +32,7 @@ RUN pnpm install --frozen-lockfile
 COPY --from=pruner /app/out/full/ .
 
 # Turbo codegen and build
-RUN turbo build --filter=@tfi-gtfs/schedule-sync
+RUN turbo build --filter=@transit-tracker/schedule-sync
 
 # Prune production dependencies
 RUN pnpm prune --prod --no-optional

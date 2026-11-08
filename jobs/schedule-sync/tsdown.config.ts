@@ -8,10 +8,10 @@ export default defineConfig({
     // Workspace packages export TypeScript source, which the Docker image
     // deletes, so bundle them along with their dependencies. The job's own
     // npm dependencies stay external
-    alwaysBundle: [/^@tfi-gtfs\//],
+    alwaysBundle: [/^@transit-tracker\//],
     onlyBundle: false,
   },
-  // tfi-gtfs-sqlite reads the Schedule's schema from beside its module, which
+  // transit-tracker-sqlite reads the Schedule's schema from beside its module, which
   // is the bundle once inlined
-  copy: ["../../packages/tfi-gtfs-sqlite/src/schema.sql"],
+  copy: ["../../packages/transit-tracker-sqlite/src/schema.sql"],
 });

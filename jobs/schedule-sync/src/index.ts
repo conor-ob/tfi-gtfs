@@ -1,10 +1,10 @@
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { GtfsStaticScheduleFeedClient } from "@tfi-gtfs/gtfs-static";
-import { injectScheduleImportDependencies } from "@tfi-gtfs/tfi-gtfs-core";
-import { createScheduleStore } from "@tfi-gtfs/tfi-gtfs-schedule-store";
-import { SqliteScheduleImportRepository } from "@tfi-gtfs/tfi-gtfs-sqlite";
+import { GtfsStaticScheduleFeedClient } from "@transit-tracker/gtfs-static";
+import { injectScheduleImportDependencies } from "@transit-tracker/transit-tracker-core";
+import { createScheduleStore } from "@transit-tracker/transit-tracker-schedule-store";
+import { SqliteScheduleImportRepository } from "@transit-tracker/transit-tracker-sqlite";
 import { env } from "./env/schema";
 
 // Daily Schedule Import: build the whole Schedule as a SQLite file in a temp

@@ -5,6 +5,6 @@ The Schedule Import runs as a daily Railway cron job (`jobs/schedule-sync`), sep
 
 ## Consequences
 
-- The job has its own composition root that wires core, `tfi-gtfs-db` and `gtfs-static`; it does not depend on the server or tRPC.
+- The job has its own composition root that wires core, `transit-tracker-db` and `gtfs-static`; it does not depend on the server or tRPC.
 - Bulk loading goes through `pg` directly (`COPY FROM STDIN`); drizzle owns the table definitions and migrations but is not used for the load.
 - The server finds out about a new Feed Version from the database, not from the job.
