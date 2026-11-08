@@ -2,7 +2,7 @@ import {
   type AppRouter,
   appRouter,
   createTrpcContext,
-} from "@tfi-gtfs/tfi-gtfs-trpc";
+} from "@transit-tracker/transit-tracker-trpc";
 import type { FastifyTRPCPluginOptions } from "@trpc/server/adapters/fastify";
 import { fastifyTRPCPlugin } from "@trpc/server/adapters/fastify";
 import type { FastifyInstance } from "fastify";

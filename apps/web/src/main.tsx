@@ -1,5 +1,5 @@
 import { QueryClientProvider } from "@tanstack/react-query";
-import { queryClient } from "@tfi-gtfs/tfi-gtfs-web-shared";
+import { queryClient } from "@transit-tracker/transit-tracker-web-shared";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 

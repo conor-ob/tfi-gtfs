@@ -226,9 +226,9 @@ importers:
       '@tanstack/react-query':
         specifier: ^5.104.0
         version: 5.104.1(react@19.3.0)
-      '@tfi-gtfs/tfi-gtfs-web-shared':
+      '@transit-tracker/transit-tracker-web-shared':
         specifier: workspace:*
-        version: link:../../packages/tfi-gtfs-web-shared
+        version: link:../../packages/transit-tracker-web-shared
       react:
         specifier: ^19.3.0
         version: 19.3.0
@@ -287,30 +287,30 @@ importers:
       '@mgcrea/pino-pretty-compact':
         specifier: ^1.6.0
         version: 1.6.0
-      '@tfi-gtfs/gtfs-realtime':
+      '@transit-tracker/gtfs-realtime':
         specifier: workspace:*
         version: link:../../packages/gtfs-realtime
-      '@tfi-gtfs/tfi-gtfs-core':
+      '@transit-tracker/transit-tracker-core':
         specifier: workspace:*
-        version: link:../../packages/tfi-gtfs-core
-      '@tfi-gtfs/tfi-gtfs-departure-board':
+        version: link:../../packages/transit-tracker-core
+      '@transit-tracker/transit-tracker-departure-board':
         specifier: workspace:*
-        version: link:../../packages/tfi-gtfs-departure-board
-      '@tfi-gtfs/tfi-gtfs-redis':
+        version: link:../../packages/transit-tracker-departure-board
+      '@transit-tracker/transit-tracker-redis':
         specifier: workspace:*
-        version: link:../../packages/tfi-gtfs-redis
-      '@tfi-gtfs/tfi-gtfs-schedule-store':
+        version: link:../../packages/transit-tracker-redis
+      '@transit-tracker/transit-tracker-schedule-store':
         specifier: workspace:*
-        version: link:../../packages/tfi-gtfs-schedule-store
-      '@tfi-gtfs/tfi-gtfs-sqlite':
+        version: link:../../packages/transit-tracker-schedule-store
+      '@transit-tracker/transit-tracker-sqlite':
         specifier: workspace:*
-        version: link:../../packages/tfi-gtfs-sqlite
-      '@tfi-gtfs/tfi-gtfs-trpc':
+        version: link:../../packages/transit-tracker-sqlite
+      '@transit-tracker/transit-tracker-trpc':
         specifier: workspace:*
-        version: link:../../packages/tfi-gtfs-trpc
-      '@tfi-gtfs/tfi-gtfs-utils':
+        version: link:../../packages/transit-tracker-trpc
+      '@transit-tracker/transit-tracker-utils':
         specifier: workspace:*
-        version: link:../../packages/tfi-gtfs-utils
+        version: link:../../packages/transit-tracker-utils
       '@trpc/server':
         specifier: 'catalog:'
         version: 11.19.0(typescript@6.0.3)
@@ -360,9 +360,9 @@ importers:
       '@tanstack/react-query':
         specifier: ^5.104.0
         version: 5.104.1(react@19.3.0)
-      '@tfi-gtfs/tfi-gtfs-web-shared':
+      '@transit-tracker/transit-tracker-web-shared':
         specifier: workspace:*
-        version: link:../../packages/tfi-gtfs-web-shared
+        version: link:../../packages/transit-tracker-web-shared
       react:
         specifier: ^19.3.0
         version: 19.3.0
@@ -409,21 +409,21 @@ importers:
 
   jobs/schedule-sync:
     dependencies:
-      '@tfi-gtfs/gtfs-static':
+      '@transit-tracker/gtfs-static':
         specifier: workspace:*
         version: link:../../packages/gtfs-static
-      '@tfi-gtfs/tfi-gtfs-core':
+      '@transit-tracker/transit-tracker-core':
         specifier: workspace:*
-        version: link:../../packages/tfi-gtfs-core
-      '@tfi-gtfs/tfi-gtfs-schedule-store':
+        version: link:../../packages/transit-tracker-core
+      '@transit-tracker/transit-tracker-schedule-store':
         specifier: workspace:*
-        version: link:../../packages/tfi-gtfs-schedule-store
-      '@tfi-gtfs/tfi-gtfs-sqlite':
+        version: link:../../packages/transit-tracker-schedule-store
+      '@transit-tracker/transit-tracker-sqlite':
         specifier: workspace:*
-        version: link:../../packages/tfi-gtfs-sqlite
-      '@tfi-gtfs/tfi-gtfs-utils':
+        version: link:../../packages/transit-tracker-sqlite
+      '@transit-tracker/transit-tracker-utils':
         specifier: workspace:*
-        version: link:../../packages/tfi-gtfs-utils
+        version: link:../../packages/transit-tracker-utils
       zod:
         specifier: 'catalog:'
         version: 4.6.5
@@ -452,9 +452,9 @@ importers:
 
   packages/gtfs-realtime:
     dependencies:
-      '@tfi-gtfs/tfi-gtfs-core':
+      '@transit-tracker/transit-tracker-core':
         specifier: workspace:*
-        version: link:../tfi-gtfs-core
+        version: link:../transit-tracker-core
       gtfs-realtime-bindings:
         specifier: ^2.2.0
         version: 2.2.0
@@ -462,7 +462,7 @@ importers:
         specifier: 'catalog:'
         version: 4.6.5
     devDependencies:
-      '@tfi-gtfs/gtfs-static':
+      '@transit-tracker/gtfs-static':
         specifier: workspace:*
         version: link:../gtfs-static
       '@total-typescript/tsconfig':
@@ -486,9 +486,9 @@ importers:
 
   packages/gtfs-static:
     dependencies:
-      '@tfi-gtfs/tfi-gtfs-core':
+      '@transit-tracker/transit-tracker-core':
         specifier: workspace:*
-        version: link:../tfi-gtfs-core
+        version: link:../transit-tracker-core
       csv-parse:
         specifier: ^7.0.3
         version: 7.0.3
@@ -509,11 +509,11 @@ importers:
         specifier: 'catalog:'
         version: 5.0.3(@types/node@24.19.2)(vite@8.3.4(@types/node@24.19.2))
 
-  packages/tfi-gtfs-core:
+  packages/transit-tracker-core:
     dependencies:
-      '@tfi-gtfs/tfi-gtfs-utils':
+      '@transit-tracker/transit-tracker-utils':
         specifier: workspace:*
-        version: link:../tfi-gtfs-utils
+        version: link:../transit-tracker-utils
       zod:
         specifier: 'catalog:'
         version: 4.6.5
@@ -531,11 +531,11 @@ importers:
         specifier: 'catalog:'
         version: 5.0.3(@types/node@24.19.2)(vite@8.3.4(@types/node@24.19.2))
 
-  packages/tfi-gtfs-departure-board:
+  packages/transit-tracker-departure-board:
     dependencies:
-      '@tfi-gtfs/tfi-gtfs-core':
+      '@transit-tracker/transit-tracker-core':
         specifier: workspace:*
-        version: link:../tfi-gtfs-core
+        version: link:../transit-tracker-core
       zod:
         specifier: 'catalog:'
         version: 4.6.5
@@ -553,11 +553,11 @@ importers:
         specifier: 'catalog:'
         version: 5.0.3(@types/node@24.19.2)(vite@8.3.4(@types/node@24.19.2))
 
-  packages/tfi-gtfs-redis:
+  packages/transit-tracker-redis:
     dependencies:
-      '@tfi-gtfs/tfi-gtfs-core':
+      '@transit-tracker/transit-tracker-core':
         specifier: workspace:*
-        version: link:../tfi-gtfs-core
+        version: link:../transit-tracker-core
       redis:
         specifier: 6.2.1
         version: 6.2.1
@@ -575,7 +575,7 @@ importers:
         specifier: 'catalog:'
         version: 5.0.3(@types/node@24.19.2)(vite@8.3.4(@types/node@24.19.2))
 
-  packages/tfi-gtfs-schedule-store:
+  packages/transit-tracker-schedule-store:
     dependencies:
       '@aws-sdk/client-s3':
         specifier: 3.1143.0
@@ -583,12 +583,12 @@ importers:
       '@aws-sdk/lib-storage':
         specifier: 3.1143.0
         version: 3.1143.0(@aws-sdk/client-s3@3.1143.0)
-      '@tfi-gtfs/tfi-gtfs-core':
+      '@transit-tracker/transit-tracker-core':
         specifier: workspace:*
-        version: link:../tfi-gtfs-core
-      '@tfi-gtfs/tfi-gtfs-utils':
+        version: link:../transit-tracker-core
+      '@transit-tracker/transit-tracker-utils':
         specifier: workspace:*
-        version: link:../tfi-gtfs-utils
+        version: link:../transit-tracker-utils
       zod:
         specifier: 'catalog:'
         version: 4.6.5
@@ -609,15 +609,15 @@ importers:
         specifier: 'catalog:'
         version: 5.0.3(@types/node@24.19.2)(vite@8.3.4(@types/node@24.19.2))
 
-  packages/tfi-gtfs-sqlite:
+  packages/transit-tracker-sqlite:
     dependencies:
-      '@tfi-gtfs/tfi-gtfs-core':
+      '@transit-tracker/transit-tracker-core':
         specifier: workspace:*
-        version: link:../tfi-gtfs-core
+        version: link:../transit-tracker-core
     devDependencies:
-      '@tfi-gtfs/tfi-gtfs-schedule-store':
+      '@transit-tracker/transit-tracker-schedule-store':
         specifier: workspace:*
-        version: link:../tfi-gtfs-schedule-store
+        version: link:../transit-tracker-schedule-store
       '@total-typescript/tsconfig':
         specifier: 'catalog:'
         version: 1.0.4
@@ -631,11 +631,11 @@ importers:
         specifier: 'catalog:'
         version: 5.0.3(@types/node@24.19.2)(vite@8.3.4(@types/node@24.19.2))
 
-  packages/tfi-gtfs-trpc:
+  packages/transit-tracker-trpc:
     dependencies:
-      '@tfi-gtfs/tfi-gtfs-core':
+      '@transit-tracker/transit-tracker-core':
         specifier: workspace:*
-        version: link:../tfi-gtfs-core
+        version: link:../transit-tracker-core
       '@trpc/server':
         specifier: 'catalog:'
         version: 11.19.0(typescript@6.0.3)
@@ -659,7 +659,7 @@ importers:
         specifier: 'catalog:'
         version: 5.0.3(@types/node@24.19.2)(vite@8.3.4(@types/node@24.19.2))
 
-  packages/tfi-gtfs-utils:
+  packages/transit-tracker-utils:
     dependencies:
       zod:
         specifier: 'catalog:'
@@ -675,7 +675,7 @@ importers:
         specifier: 'catalog:'
         version: 6.0.3
 
-  packages/tfi-gtfs-web-shared:
+  packages/transit-tracker-web-shared:
     dependencies:
       '@tanstack/react-query':
         specifier: ^5.104.0
@@ -690,9 +690,9 @@ importers:
         specifier: 'catalog:'
         version: 2.2.6
     devDependencies:
-      '@tfi-gtfs/tfi-gtfs-trpc':
+      '@transit-tracker/transit-tracker-trpc':
         specifier: workspace:*
-        version: link:../tfi-gtfs-trpc
+        version: link:../transit-tracker-trpc
       '@total-typescript/tsconfig':
         specifier: 'catalog:'
         version: 1.0.4

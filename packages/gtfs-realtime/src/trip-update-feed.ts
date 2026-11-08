@@ -2,7 +2,7 @@ import type {
   StopTimeUpdate,
   TripUpdate,
   TripUpdateFeed,
-} from "@tfi-gtfs/tfi-gtfs-core";
+} from "@transit-tracker/transit-tracker-core";
 import GtfsRealtimeBindings from "gtfs-realtime-bindings";
 
 const { transit_realtime: rt } = GtfsRealtimeBindings;

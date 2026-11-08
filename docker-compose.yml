@@ -4,7 +4,7 @@ services:
   # Trip Updates are disposable, so no volume
   redis:
     image: redis:8-alpine
-    container_name: tfi-gtfs-redis
+    container_name: transit-tracker-redis
     ports:
       - "6379:6379"
     healthcheck:

@@ -3,7 +3,7 @@ import type {
   ScheduleFeedClient,
   ScheduleTableName,
   ScheduleTables,
-} from "@tfi-gtfs/tfi-gtfs-core";
+} from "@transit-tracker/transit-tracker-core";
 import { parse } from "csv-parse";
 import { type CsvRecord, parsers } from "./parsers";
 import { openRemoteZip } from "./remote-zip";

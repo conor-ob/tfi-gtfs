@@ -13,7 +13,7 @@ RUN npm install -g pnpm turbo \
 FROM base AS pruner
 WORKDIR /app
 COPY . .
-RUN turbo prune --scope=@tfi-gtfs/server --docker
+RUN turbo prune --scope=@transit-tracker/server --docker
 
 # Build stage
 FROM base AS builder
@@ -33,7 +33,7 @@ RUN pnpm install --frozen-lockfile
 COPY --from=pruner /app/out/full/ .
 
 # Turbo codegen and build
-RUN turbo build --filter=@tfi-gtfs/server
+RUN turbo build --filter=@transit-tracker/server
 
 # Prune production dependencies
 RUN pnpm prune --prod --no-optional

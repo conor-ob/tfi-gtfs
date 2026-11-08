@@ -46,7 +46,7 @@ function dockerBuildConfig({
 
 export default defineRailway(() => {
   // Deploy a commit only once its GitHub checks (CI, Railway apply) pass
-  const tfiGtfs = github("conor-ob/tfi-gtfs", {
+  const transitTracker = github("conor-ob/transit-tracker", {
     checkSuites: true,
   });
 
@@ -76,7 +76,7 @@ export default defineRailway(() => {
   // One replica for now. Trip Updates and their refresh cooldown live in
   // Redis, so more would share them (see docs/adr/0009)
   const server = service("server", {
-    source: tfiGtfs,
+    source: transitTracker,
     env: {
       PORT: "8080",
       ...scheduleBucketEnv,
@@ -100,7 +100,7 @@ export default defineRailway(() => {
   // Serves the static build and proxies /api to the server over private
   // networking, so the server needs no public domain and no CORS origin
   const web = service("web", {
-    source: tfiGtfs,
+    source: transitTracker,
     env: {
       PORT: "8080",
       SERVER_URL: railwayPrivateNetworkingUrl(server),
@@ -116,7 +116,7 @@ export default defineRailway(() => {
 
   // The LED board on its own domain, served and proxied like web
   const dartboard = service("dartboard", {
-    source: tfiGtfs,
+    source: transitTracker,
     env: {
       PORT: "8080",
       SERVER_URL: railwayPrivateNetworkingUrl(server),
@@ -133,7 +133,7 @@ export default defineRailway(() => {
   // Railway cron is UTC, so this is 03:00 in Irish winter and 04:00 in
   // summer; the Schedule is published around 22:30 UTC
   const scheduleSync = service("schedule-sync", {
-    source: tfiGtfs,
+    source: transitTracker,
     env: {
       ...scheduleBucketEnv,
       SCHEDULE_URL:
@@ -154,7 +154,7 @@ export default defineRailway(() => {
   const backend = group("backend", [server]);
   const frontend = group("frontend", [web, dartboard]);
 
-  return project("tfi-gtfs", {
+  return project("transit-tracker", {
     resources: [backend, database, frontend, jobs],
   });
 });

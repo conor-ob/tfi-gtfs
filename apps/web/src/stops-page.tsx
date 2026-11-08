@@ -5,7 +5,7 @@ import {
   STOPS,
   trpc,
   useNow,
-} from "@tfi-gtfs/tfi-gtfs-web-shared";
+} from "@transit-tracker/transit-tracker-web-shared";
 
 import { DepartureRow, formatAgo } from "./departure-row";
 

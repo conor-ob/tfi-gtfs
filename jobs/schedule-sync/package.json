@@ -1,5 +1,5 @@
 {
-  "name": "@tfi-gtfs/schedule-sync",
+  "name": "@transit-tracker/schedule-sync",
   "version": "0.0.0",
   "type": "module",
   "private": true,
@@ -12,11 +12,11 @@
     "test": "vitest"
   },
   "dependencies": {
-    "@tfi-gtfs/gtfs-static": "workspace:*",
-    "@tfi-gtfs/tfi-gtfs-core": "workspace:*",
-    "@tfi-gtfs/tfi-gtfs-schedule-store": "workspace:*",
-    "@tfi-gtfs/tfi-gtfs-sqlite": "workspace:*",
-    "@tfi-gtfs/tfi-gtfs-utils": "workspace:*",
+    "@transit-tracker/gtfs-static": "workspace:*",
+    "@transit-tracker/transit-tracker-core": "workspace:*",
+    "@transit-tracker/transit-tracker-schedule-store": "workspace:*",
+    "@transit-tracker/transit-tracker-sqlite": "workspace:*",
+    "@transit-tracker/transit-tracker-utils": "workspace:*",
     "zod": "catalog:"
   },
   "devDependencies": {

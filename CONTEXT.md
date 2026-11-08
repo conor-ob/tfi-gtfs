@@ -1,4 +1,4 @@
-# TFI GTFS
+# Transit Tracker
 
 Public transport schedules and live departure times for Irish public transport (Dublin first), served to the owner's own apps.
 

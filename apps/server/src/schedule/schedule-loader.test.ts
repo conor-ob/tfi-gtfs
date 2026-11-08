@@ -1,12 +1,12 @@
 import { mkdir, readdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { gzipSync } from "node:zlib";
-import { ScheduleHashMismatchError } from "@tfi-gtfs/tfi-gtfs-core";
+import { ScheduleHashMismatchError } from "@transit-tracker/transit-tracker-core";
 import {
   SCHEDULE_SCHEMA_VERSION,
   ScheduleDatabase,
   SqliteDepartureRepository,
-} from "@tfi-gtfs/tfi-gtfs-sqlite";
+} from "@transit-tracker/transit-tracker-sqlite";
 import pino from "pino";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { ScheduleLoader } from "~/schedule/schedule-loader";

@@ -1,4 +1,7 @@
-import { useNow, useStopDepartures } from "@tfi-gtfs/tfi-gtfs-web-shared";
+import {
+  useNow,
+  useStopDepartures,
+} from "@transit-tracker/transit-tracker-web-shared";
 
 import { DepartureRow, formatAgo } from "./departure-row";
 

@@ -8,11 +8,11 @@
  *
  * Reads NTA_API_KEY from apps/server/.env.
  *
- * Usage: pnpm --filter @tfi-gtfs/gtfs-realtime spike [realtime-url]
+ * Usage: pnpm --filter @transit-tracker/gtfs-realtime spike [realtime-url]
  */
 import { Writable } from "node:stream";
 import { pipeline } from "node:stream/promises";
-import { openRemoteZip } from "@tfi-gtfs/gtfs-static";
+import { openRemoteZip } from "@transit-tracker/gtfs-static";
 import { parse } from "csv-parse";
 import GtfsRealtimeBindings from "gtfs-realtime-bindings";
 import { z } from "zod";

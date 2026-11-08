@@ -1,7 +1,7 @@
 import {
   type DepartureBoardOptions,
   DepartureBoardSession,
-} from "@tfi-gtfs/tfi-gtfs-departure-board";
+} from "@transit-tracker/transit-tracker-departure-board";
 import type { FastifyInstance } from "fastify";
 
 // The Departure Board's Transit Tracker protocol (see docs/adr/0010). Rate

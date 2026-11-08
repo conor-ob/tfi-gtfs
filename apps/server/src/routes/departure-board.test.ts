@@ -1,6 +1,6 @@
 import type { WebSocket } from "@fastify/websocket";
-import type { Departure } from "@tfi-gtfs/tfi-gtfs-core";
-import type { ServerMessage } from "@tfi-gtfs/tfi-gtfs-departure-board";
+import type { Departure } from "@transit-tracker/transit-tracker-core";
+import type { ServerMessage } from "@transit-tracker/transit-tracker-departure-board";
 import Fastify, { type FastifyInstance } from "fastify";
 import { expect, onTestFinished, suite, test } from "vitest";
 import registerWebsocketPlugin from "~/plugins/websocket";

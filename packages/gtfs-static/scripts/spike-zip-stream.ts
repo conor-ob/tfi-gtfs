@@ -10,7 +10,7 @@
  *    the sink back to the socket.
  * 3. Counts rows per agency so we can size the agency filter.
  *
- * Usage: pnpm --filter @tfi-gtfs/gtfs-static spike [url] [--slow]
+ * Usage: pnpm --filter @transit-tracker/gtfs-static spike [url] [--slow]
  *   --slow  makes the sink artificially slow on stop_times.txt, to check that
  *           memory stays flat when the consumer is slower than the network.
  */
