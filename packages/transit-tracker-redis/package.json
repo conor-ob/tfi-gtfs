@@ -19,7 +19,7 @@
   },
   "dependencies": {
     "@transit-tracker/transit-tracker-core": "workspace:*",
-    "redis": "6.2.1"
+    "redis": "6.3.1"
   },
   "devDependencies": {
     "@total-typescript/tsconfig": "catalog:",

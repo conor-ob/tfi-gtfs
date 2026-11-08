@@ -18,8 +18,8 @@
     "test": "vitest"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "3.1143.0",
-    "@aws-sdk/lib-storage": "3.1143.0",
+    "@aws-sdk/client-s3": "3.1161.0",
+    "@aws-sdk/lib-storage": "3.1161.0",
     "@transit-tracker/transit-tracker-core": "workspace:*",
     "@transit-tracker/transit-tracker-utils": "workspace:*",
     "zod": "catalog:"
