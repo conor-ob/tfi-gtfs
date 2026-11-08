@@ -19,7 +19,7 @@ Turborepo + pnpm monorepo, TypeScript throughout, hexagonal architecture.
 | `packages/transit-tracker-redis` | Redis adapter: `RedisTripUpdateStore` and the client factory |
 | `packages/transit-tracker-schedule-store` | `ScheduleStore` adapters: `FsScheduleStore` (a local folder), `S3ScheduleStore` (the Railway bucket) and `createScheduleStore`, which picks one from the env. Used by `schedule-sync` and the server |
 | `packages/transit-tracker-trpc` | tRPC router, thin layer over core services |
-| `packages/transit-tracker-departure-board` | Departure Board adapter: Transit Tracker WebSocket messages, `routeStopPairs` parser, Departures to trips |
+| `packages/transit-tracker-departure-board` | Departure Board adapter: the Transit Tracker firmware's WebSocket messages, `routeStopPairs` parser, Departures to trips |
 | `packages/transit-tracker-web-shared` | Shared by the web apps: tRPC client, the Watched Stops and their Walk Times, `useStopDepartures`, `useNow` |
 | `packages/transit-tracker-utils` | Shared helpers (env schemas, `assertNever`) |
 | `packages/gtfs-static` | Adapter: remote zip → CSV streams (`openRemoteZip`) |
@@ -74,7 +74,7 @@ Smaller decisions that don't warrant an ADR:
 8. ~~**Watched Stops**~~: done, then reverted. The Schedule Import kept only the Watched Stops (ADR 0007) until ADR 0011.
 9. ~~**Web**~~: done. `apps/web`, a single page of live Departures at the Watched Stops.
 10. ~~**Realtime in Redis**~~: done. `RedisTripUpdateStore` in `transit-tracker-redis`, refreshed on read instead of polled (ADR 0009).
-11. ~~**Departure Board**~~: done. `transit-tracker-departure-board` inbound adapter and the `/departure-board` WebSocket route, speaking the Transit Tracker protocol (ADR 0010).
+11. ~~**Departure Board**~~: done. `transit-tracker-departure-board` inbound adapter and the `/departure-board` WebSocket route, speaking the Transit Tracker firmware's protocol (ADR 0010).
 
 ## Spikes
 

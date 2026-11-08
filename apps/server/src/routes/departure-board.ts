@@ -4,8 +4,9 @@ import {
 } from "@transit-tracker/transit-tracker-departure-board";
 import type { FastifyInstance } from "fastify";
 
-// The Departure Board's Transit Tracker protocol (see docs/adr/0010). Rate
-// limiting applies to the upgrade request only, so open sockets stay open
+// The Departure Board's Transit Tracker firmware protocol (see
+// docs/adr/0010). Rate limiting applies to the upgrade request only, so open
+// sockets stay open
 export default function (
   fastify: FastifyInstance,
   options?: Partial<DepartureBoardOptions>,

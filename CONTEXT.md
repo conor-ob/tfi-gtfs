@@ -2,6 +2,8 @@
 
 Public transport schedules and live departure times for Irish public transport (Dublin first), served to the owner's own apps.
 
+The project shares its name with the third-party Transit Tracker firmware the Departure Board runs; in prose, "Transit Tracker" alone means this project.
+
 ## Language
 
 ### Schedule
@@ -87,3 +89,7 @@ _Avoid_: Offset, lead time, buffer
 **Departure Board**:
 A physical display in the owner's home showing upcoming Departures at some of the Watched Stops, a few rows at a time. It asks for the Departures it wants; nothing about a Departure Board is stored.
 _Avoid_: Display (the screen hardware), tracker, sign
+
+**Transit Tracker firmware**:
+The third-party firmware the Departure Board runs, unmodified, and the WebSocket protocol it speaks to our server. Always say "firmware" or "protocol" with it, so it isn't read as this project.
+_Avoid_: Transit Tracker (alone, for the firmware), the board's API
